@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    proxyResolution: true,
-  },
+  // Removed invalid experimental.proxyResolution option
 };
 
 export default nextConfig;
