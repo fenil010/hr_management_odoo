@@ -110,8 +110,15 @@ export default function AdminPayrollPage() {
       // Fetch payroll for each employee
       const payrollList = await Promise.all(
         employees.map(async (emp: any) => {
-          let payrollInfo = {
-            baseSalary: 0,
+          let payrollInfo: {
+            basicSalary?: number;
+            baseSalary?: number;
+            hra: number;
+            allowances: number;
+            deductions: number;
+            netSalary: number;
+          } = {
+            basicSalary: 0,
             hra: 0,
             allowances: 0,
             deductions: 0,
