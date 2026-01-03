@@ -10,7 +10,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Loader,
 } from "recharts";
 
 interface PayrollData {

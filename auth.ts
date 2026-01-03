@@ -25,7 +25,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const user = await prisma.user.findUnique({
             where: { email },
             include: { employee: true },
-          }).catch((err) => {
+          }).catch((err: unknown) => {
             console.error("💥 Database error finding user:", err);
             return null;
           });

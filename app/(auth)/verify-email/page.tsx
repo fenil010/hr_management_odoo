@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Mail, AlertCircle, CheckCircle2, ArrowRight, Loader2, RefreshCw } from "lucide-react";
 
-export default function VerifyEmailPage() {
+function VerifyEmailForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
@@ -248,6 +248,23 @@ export default function VerifyEmailPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-card text-card-foreground p-8 rounded-2xl shadow-2xl border border-border">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25 mb-4">
+            <Mail className="h-7 w-7 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <VerifyEmailForm />
+    </Suspense>
   );
 }
 

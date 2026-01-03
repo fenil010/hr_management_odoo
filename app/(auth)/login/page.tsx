@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -178,5 +178,22 @@ export default function LoginPage() {
       </div>
       
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-card text-card-foreground p-8 rounded-2xl shadow-2xl border border-border">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25 mb-4">
+            <Sparkles className="h-7 w-7 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

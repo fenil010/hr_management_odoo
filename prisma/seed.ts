@@ -245,7 +245,7 @@ async function main() {
         data: {
           employeeId: emp.id,
           date: date,
-          status: status,
+          status: status as "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE",
           checkIn: status !== "ABSENT" && status !== "LEAVE" ? new Date(date.setHours(9, Math.random() * 30, 0)) : null,
           checkOut: status === "PRESENT" ? new Date(date.setHours(17, 30 + Math.random() * 30, 0)) : 
                     status === "HALF_DAY" ? new Date(date.setHours(13, Math.random() * 60, 0)) : null,
