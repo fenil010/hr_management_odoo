@@ -69,6 +69,8 @@ export default function AdminPayrollPage() {
     allowances: 0,
     deductions: 0,
   });
+  const [adminBudget, setAdminBudget] = useState(600000); // Admin's available budget
+  const [isAdjustBudgetOpen, setIsAdjustBudgetOpen] = useState(false);
 
   // Month options
   const months = [
@@ -127,7 +129,7 @@ export default function AdminPayrollPage() {
           }
 
           // Estimate bonus (can be updated later when bonus field is added)
-          const bonus = Math.round(payrollInfo.baseSalary * 0.1); // 10% of base
+          const bonus = Math.round((payrollInfo.basicSalary || 0) * 0.1); // 10% of base
 
           return {
             id: emp.id,
@@ -137,9 +139,9 @@ export default function AdminPayrollPage() {
             baseSalary: payrollInfo.basicSalary || 0,
             bonus,
             deductions: payrollInfo.deductions || 0,
-            netSalary: payrollInfo.netSalary || 0,
-            status: payrollInfo.netSalary > 0 ? "paid" : "pending",
-            paidDate: payrollInfo.netSalary > 0 ? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null,
+            netSalary: (payrollInfo.basicSalary || 0) + (payrollInfo.hra || 0) + (payrollInfo.allowances || 0) - (payrollInfo.deductions || 0),
+            status: "pending",
+            paidDate: null,
           };
         })
       );
@@ -275,6 +277,10 @@ export default function AdminPayrollPage() {
     }).format(amount);
   };
 
+  // Calculate remaining budget
+  const totalPayroll = payrollData.reduce((sum, e) => sum + e.netSalary, 0);
+  const remainingBudget = adminBudget - totalPayroll;
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
@@ -290,11 +296,45 @@ export default function AdminPayrollPage() {
 
   return (
     <div className="space-y-6">
+      {/* Admin Budget Card */}
+      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950">
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Total Budget Allocated</p>
+              <p className="text-3xl font-bold text-blue-600">{formatCurrency(adminBudget)}</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsAdjustBudgetOpen(true)}
+                className="mt-2"
+              >
+                Adjust Budget
+              </Button>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Total Payroll (All Employees)</p>
+              <p className="text-3xl font-bold text-amber-600">{formatCurrency(totalPayroll)}</p>
+              <p className="text-xs text-muted-foreground mt-2">{payrollData.length} employees</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
+              <p className={`text-3xl font-bold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(remainingBudget)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {remainingBudget >= 0 ? 'Available' : 'Overbudget'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
-          <p className="text-muted-foreground">Process and manage employee salaries</p>
+          <h1 className="text-3xl font-bold tracking-tight">Payroll Details</h1>
+          <p className="text-muted-foreground">Manage and send employee salaries</p>
         </div>
         <div className="flex items-center gap-2">
           {mounted && currentTime && (
@@ -463,10 +503,10 @@ export default function AdminPayrollPage() {
                     <th className="text-left p-4 font-medium">Employee</th>
                     <th className="text-left p-4 font-medium">Department</th>
                     <th className="text-right p-4 font-medium">Base Salary</th>
-                    <th className="text-right p-4 font-medium">Bonus</th>
+                    <th className="text-right p-4 font-medium">HRA</th>
+                    <th className="text-right p-4 font-medium">Allowances</th>
                     <th className="text-right p-4 font-medium">Deductions</th>
                     <th className="text-right p-4 font-medium">Net Salary</th>
-                    <th className="text-left p-4 font-medium">Status</th>
                     <th className="text-center p-4 font-medium">Action</th>
                   </tr>
                 </thead>
@@ -492,6 +532,9 @@ export default function AdminPayrollPage() {
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(employee.baseSalary)}
                       </td>
+                      <td className="p-4 text-right font-medium">
+                        {formatCurrency(Math.round(employee.baseSalary * 0.25))}
+                      </td>
                       <td className="p-4 text-right text-green-600 font-medium">
                         +{formatCurrency(employee.bonus)}
                       </td>
@@ -500,9 +543,6 @@ export default function AdminPayrollPage() {
                       </td>
                       <td className="p-4 text-right font-bold text-lg">
                         {formatCurrency(employee.netSalary)}
-                      </td>
-                      <td className="p-4">
-                        {getStatusBadge(employee.status)}
                       </td>
                       <td className="p-4 text-center">
                         <Button
@@ -520,6 +560,7 @@ export default function AdminPayrollPage() {
                   <tr className="bg-muted/50 font-bold">
                     <td className="p-4" colSpan={2}>Total ({filteredData.length} employees)</td>
                     <td className="p-4 text-right">{formatCurrency(filteredData.reduce((sum, e) => sum + e.baseSalary, 0))}</td>
+                    <td className="p-4 text-right">{formatCurrency(filteredData.reduce((sum, e) => sum + Math.round(e.baseSalary * 0.25), 0))}</td>
                     <td className="p-4 text-right text-green-600">+{formatCurrency(filteredData.reduce((sum, e) => sum + e.bonus, 0))}</td>
                     <td className="p-4 text-right text-red-600">-{formatCurrency(filteredData.reduce((sum, e) => sum + e.deductions, 0))}</td>
                     <td className="p-4 text-right text-lg">{formatCurrency(filteredData.reduce((sum, e) => sum + e.netSalary, 0))}</td>
@@ -607,6 +648,55 @@ export default function AdminPayrollPage() {
             </Button>
             <Button onClick={handleSaveEmployeeSalary}>
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Budget Dialog */}
+      <Dialog open={isAdjustBudgetOpen} onOpenChange={setIsAdjustBudgetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Payroll Budget</DialogTitle>
+            <DialogDescription>
+              Set the total monthly budget available for employee salaries
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="budgetAmount">Total Monthly Budget</Label>
+              <Input
+                id="budgetAmount"
+                type="number"
+                value={adminBudget}
+                onChange={(e) => setAdminBudget(parseFloat(e.target.value) || 0)}
+                className="mt-1"
+              />
+            </div>
+            <div className="bg-muted p-4 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Budget Allocated:</span>
+                <span className="font-semibold">{formatCurrency(adminBudget)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Total Payroll:</span>
+                <span className="font-semibold">{formatCurrency(totalPayroll)}</span>
+              </div>
+              <div className="h-px bg-border"></div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Remaining Balance:</span>
+                <span className={`font-bold text-lg ${adminBudget - totalPayroll >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(adminBudget - totalPayroll)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAdjustBudgetOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setIsAdjustBudgetOpen(false)}>
+              Save Budget
             </Button>
           </DialogFooter>
         </DialogContent>
