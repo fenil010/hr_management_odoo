@@ -45,34 +45,83 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Employee data
-const initialEmployees = [
-  { id: 1, name: "John Doe", email: "john@dayflow.com", phone: "+91 98765 43210", department: "Engineering", role: "Senior Developer", status: "active", joinDate: "Jan 15, 2024", salary: 75000 },
-  { id: 2, name: "Jane Smith", email: "jane@dayflow.com", phone: "+91 98765 43211", department: "Design", role: "UI/UX Designer", status: "active", joinDate: "Mar 20, 2024", salary: 65000 },
-  { id: 3, name: "Mike Davis", email: "mike@dayflow.com", phone: "+91 98765 43212", department: "Marketing", role: "Marketing Manager", status: "active", joinDate: "Feb 10, 2024", salary: 70000 },
-  { id: 4, name: "Sarah Johnson", email: "sarah@dayflow.com", phone: "+91 98765 43213", department: "HR", role: "HR Manager", status: "active", joinDate: "Dec 5, 2023", salary: 68000 },
-  { id: 5, name: "Robert Brown", email: "robert@dayflow.com", phone: "+91 98765 43214", department: "Engineering", role: "Frontend Developer", status: "active", joinDate: "Apr 1, 2024", salary: 60000 },
-  { id: 6, name: "Emily Wilson", email: "emily@dayflow.com", phone: "+91 98765 43215", department: "Sales", role: "Sales Executive", status: "inactive", joinDate: "Jun 15, 2023", salary: 55000 },
-  { id: 7, name: "David Lee", email: "david@dayflow.com", phone: "+91 98765 43216", department: "Engineering", role: "Backend Developer", status: "active", joinDate: "May 20, 2024", salary: 72000 },
-  { id: 8, name: "Lisa Chen", email: "lisa@dayflow.com", phone: "+91 98765 43217", department: "Finance", role: "Financial Analyst", status: "active", joinDate: "Jul 1, 2024", salary: 62000 },
-  { id: 9, name: "James Taylor", email: "james@dayflow.com", phone: "+91 98765 43218", department: "Support", role: "Customer Support Lead", status: "active", joinDate: "Aug 10, 2024", salary: 50000 },
-  { id: 10, name: "Amanda White", email: "amanda@dayflow.com", phone: "+91 98765 43219", department: "Marketing", role: "Content Writer", status: "active", joinDate: "Sep 5, 2024", salary: 45000 },
-  { id: 11, name: "Chris Martin", email: "chris@dayflow.com", phone: "+91 98765 43220", department: "Engineering", role: "DevOps Engineer", status: "active", joinDate: "Oct 15, 2024", salary: 80000 },
-  { id: 12, name: "Rachel Green", email: "rachel@dayflow.com", phone: "+91 98765 43221", department: "Design", role: "Graphic Designer", status: "active", joinDate: "Nov 1, 2024", salary: 52000 },
-];
+interface Employee {
+  id: string;
+  fullName: string;
+  employeeCode: string;
+  email?: string;
+  phone: string | null;
+  department: string;
+  designation: string;
+  status: string;
+  joinDate: string;
+  salary: number;
+  user?: {
+    email: string;
+    isActive: boolean;
+  };
+}
 
 export default function AdminEmployeesPage() {
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+    setIsRefreshing(true);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/employees");
+      const data = await res.json();
+      
+      if (data.employees) {
+        // Fetch payroll for each employee to get salary
+        const employeesWithSalary = await Promise.all(
+          data.employees.map(async (emp: any) => {
+            let salary = 0;
+            try {
+              const payrollRes = await fetch(`/api/payroll?employeeId=${emp.id}`);
+              const payrollData = await payrollRes.json();
+              if (payrollData.payroll) {
+                salary = payrollData.payroll.netSalary || 0;
+              }
+            } catch (error) {
+              console.error(`Error fetching payroll for ${emp.id}:`, error);
+            }
+
+            return {
+              id: emp.id,
+              fullName: emp.fullName,
+              employeeCode: emp.employeeCode,
+              email: emp.user?.email || "",
+              phone: emp.phone,
+              department: emp.department,
+              designation: emp.designation,
+              status: emp.user?.isActive ? "active" : "inactive",
+              joinDate: new Date(emp.joiningDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              salary,
+            };
+          })
+        );
+        setEmployees(employeesWithSalary);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   // Calculate stats
   const totalEmployees = employees.length;
@@ -82,20 +131,16 @@ export default function AdminEmployeesPage() {
 
   // Filter data
   const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         employee.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = employee.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         employee.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         employee.designation.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
     const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
     return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setEmployees([...initialEmployees]);
-      setIsRefreshing(false);
-    }, 500);
+    fetchEmployees();
   };
 
   const formatCurrency = (amount: number) => {
@@ -284,11 +329,11 @@ export default function AdminEmployeesPage() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
                             <AvatarFallback className="bg-primary/10 text-primary">
-                              {employee.name.split(" ").map(n => n[0]).join("")}
+                              {employee.fullName.split(" ").map(n => n[0]).join("").toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium">{employee.name}</p>
+                            <p className="font-medium">{employee.fullName}</p>
                             <p className="text-xs text-muted-foreground">Joined {employee.joinDate}</p>
                           </div>
                         </div>
@@ -309,7 +354,7 @@ export default function AdminEmployeesPage() {
                         <Badge variant="outline">{employee.department}</Badge>
                       </td>
                       <td className="p-4">
-                        <span className="text-sm">{employee.role}</span>
+                        <span className="text-sm">{employee.designation}</span>
                       </td>
                       <td className="p-4">
                         <span className="font-medium">{formatCurrency(employee.salary)}</span>

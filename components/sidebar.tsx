@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [pendingLeavesCount, setPendingLeavesCount] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   const adminGroups: NavGroup[] = [
     {
@@ -53,11 +55,34 @@ export default function Sidebar() {
       items: [
         { href: "/admin/employees", label: "Employees", icon: Users },
         { href: "/admin/attendance", label: "Attendance", icon: CalendarCheck },
-        { href: "/admin/leave-requests", label: "Leave Requests", icon: CalendarOff, badge: 3 },
+        { href: "/admin/leave-requests", label: "Leave Requests", icon: CalendarOff, badge: pendingLeavesCount },
         { href: "/admin/payroll", label: "Payroll", icon: DollarSign },
       ],
     },
   ];
+
+  // Fetch pending leaves count
+  useEffect(() => {
+    setMounted(true);
+    const fetchPendingLeaves = async () => {
+      if (!isAdmin) return;
+      
+      try {
+        const res = await fetch("/api/leave?status=PENDING");
+        const data = await res.json();
+        if (data.leaveRequests) {
+          setPendingLeavesCount(data.leaveRequests.length);
+        }
+      } catch (error) {
+        console.error("Error fetching pending leaves:", error);
+      }
+    };
+
+    fetchPendingLeaves();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingLeaves, 30000);
+    return () => clearInterval(interval);
+  }, [isAdmin]);
 
   const employeeGroups: NavGroup[] = [
     {
@@ -153,27 +178,29 @@ export default function Sidebar() {
     <aside
       className={cn(
         "relative flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-18" : "w-64"
+        mounted && isCollapsed ? "w-18" : "w-64"
       )}
     >
       {/* Toggle Button */}
       <div className="flex items-center justify-between px-3 py-4 border-b">
-        {!isCollapsed && (
+        {mounted && !isCollapsed && (
           <span className="text-sm font-semibold text-foreground">Menu</span>
         )}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent transition-colors",
-            isCollapsed && "mx-auto"
-          )}
-        >
-          {isCollapsed ? (
-            <Menu className="h-5 w-5 text-muted-foreground" />
-          ) : (
-            <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
-          )}
-        </button>
+        {mounted && (
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent transition-colors",
+              isCollapsed && "mx-auto"
+            )}
+          >
+            {isCollapsed ? (
+              <Menu className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -181,7 +208,7 @@ export default function Sidebar() {
         <nav className="space-y-6">
           {groups.map((group, index) => (
             <div key={group.title}>
-              {!isCollapsed && (
+              {mounted && !isCollapsed && (
                 <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.title}
                 </h4>

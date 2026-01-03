@@ -25,19 +25,16 @@ import {
   AlertCircle
 } from "lucide-react";
 
-// Real-time attendance data
-const initialAttendanceData = [
-  { id: 1, name: "John Doe", email: "john@dayflow.com", department: "Engineering", checkIn: "09:00 AM", checkOut: "06:15 PM", status: "present", workHours: "9h 15m" },
-  { id: 2, name: "Jane Smith", email: "jane@dayflow.com", department: "Design", checkIn: "09:30 AM", checkOut: null, status: "present", workHours: "Working..." },
-  { id: 3, name: "Mike Davis", email: "mike@dayflow.com", department: "Marketing", checkIn: "08:45 AM", checkOut: "05:00 PM", status: "present", workHours: "8h 15m" },
-  { id: 4, name: "Sarah Johnson", email: "sarah@dayflow.com", department: "HR", checkIn: null, checkOut: null, status: "leave", workHours: "-" },
-  { id: 5, name: "Robert Brown", email: "robert@dayflow.com", department: "Engineering", checkIn: "10:15 AM", checkOut: null, status: "late", workHours: "Working..." },
-  { id: 6, name: "Emily Wilson", email: "emily@dayflow.com", department: "Sales", checkIn: null, checkOut: null, status: "absent", workHours: "-" },
-  { id: 7, name: "David Lee", email: "david@dayflow.com", department: "Engineering", checkIn: "09:05 AM", checkOut: null, status: "present", workHours: "Working..." },
-  { id: 8, name: "Lisa Chen", email: "lisa@dayflow.com", department: "Finance", checkIn: "08:55 AM", checkOut: "06:00 PM", status: "present", workHours: "9h 05m" },
-  { id: 9, name: "James Taylor", email: "james@dayflow.com", department: "Support", checkIn: "09:00 AM", checkOut: null, status: "present", workHours: "Working..." },
-  { id: 10, name: "Amanda White", email: "amanda@dayflow.com", department: "Marketing", checkIn: null, checkOut: null, status: "absent", workHours: "-" },
-];
+interface AttendanceData {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  workHours: string;
+}
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -60,8 +57,9 @@ export default function AdminAttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [attendanceData, setAttendanceData] = useState(initialAttendanceData);
+  const [attendanceData, setAttendanceData] = useState<AttendanceData[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -69,8 +67,88 @@ export default function AdminAttendancePage() {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
+    fetchAttendanceData();
     return () => clearInterval(timer);
   }, []);
+
+  const fetchAttendanceData = async () => {
+    setIsRefreshing(true);
+    setLoading(true);
+    try {
+      // Get all employees first
+      const employeesRes = await fetch("/api/employees");
+      const employeesData = await employeesRes.json();
+      const employees = employeesData.employees || [];
+
+      // Get today's attendance for all employees
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const attendanceRes = await fetch(
+        `/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
+      );
+      const attendanceData = await attendanceRes.json();
+      const todayRecords = attendanceData.attendanceRecords || [];
+
+      // Create a map of employee attendance
+      const attendanceMap = new Map();
+      todayRecords.forEach((record: any) => {
+        attendanceMap.set(record.employeeId, record);
+      });
+
+      // Combine employee data with attendance records
+      const combinedData = employees.map((emp: any) => {
+        const record = attendanceMap.get(emp.id);
+        const checkIn = record?.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        }) : null;
+        const checkOut = record?.checkOut ? new Date(record.checkOut).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        }) : null;
+
+        let workHours = "-";
+        if (checkIn && checkOut) {
+          const checkInTime = new Date(record.checkIn);
+          const checkOutTime = new Date(record.checkOut);
+          const diff = checkOutTime.getTime() - checkInTime.getTime();
+          const h = Math.floor(diff / (1000 * 60 * 60));
+          const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          workHours = `${h}h ${m}m`;
+        } else if (checkIn) {
+          workHours = "Working...";
+        }
+
+        let status = "absent";
+        if (record) {
+          status = record.status?.toLowerCase().replace('_', '-') || "absent";
+        }
+
+        return {
+          id: emp.id,
+          name: emp.fullName,
+          email: emp.user?.email || "",
+          department: emp.department,
+          checkIn,
+          checkOut,
+          status,
+          workHours,
+        };
+      });
+
+      setAttendanceData(combinedData);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   // Calculate stats
   const totalEmployees = attendanceData.length;
@@ -92,15 +170,11 @@ export default function AdminAttendancePage() {
   const departments = [...new Set(attendanceData.map(e => e.department))];
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setAttendanceData([...initialAttendanceData]);
-      setIsRefreshing(false);
-    }, 500);
+    fetchAttendanceData();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" suppressHydrationWarning>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -179,7 +253,7 @@ export default function AdminAttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle>Today&apos;s Attendance</CardTitle>
-          <CardDescription>
+          <CardDescription suppressHydrationWarning>
             {mounted && currentTime && currentTime.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </CardDescription>
         </CardHeader>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,40 +17,60 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
-  Bell
+  Bell,
+  Loader2
 } from "lucide-react";
 
-// Mock data - In production, this would come from API/session
-const employeeData = {
-  name: "John Doe",
-  email: "john@dayflow.com",
-  department: "Engineering",
-  designation: "Software Developer",
-  employeeId: "EMP-001",
-};
+interface EmployeeData {
+  id: string;
+  fullName: string;
+  employeeCode: string;
+  department: string;
+  designation: string;
+  email?: string;
+}
 
-const todayAttendance = {
-  status: "present", // present, absent, half-day, leave, not-marked
-  checkIn: "09:15 AM",
-  checkOut: null,
-};
+interface TodayAttendance {
+  status: string;
+  checkIn: string | null;
+  checkOut: string | null;
+}
 
-const leaveStats = {
-  pending: 1,
-  approved: 5,
-  remaining: 12,
-  total: 20,
-};
+interface LeaveStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  remaining: number;
+  total: number;
+}
 
-const recentNotifications = [
-  { id: 1, message: "Your leave request has been approved", time: "2 hours ago", type: "success" },
-  { id: 2, message: "Payroll for December has been processed", time: "1 day ago", type: "info" },
-  { id: 3, message: "Please complete your profile", time: "3 days ago", type: "warning" },
-];
+interface AttendanceStats {
+  present: number;
+  absent: number;
+  halfDay: number;
+  leave: number;
+}
 
 export default function EmployeePage() {
+  const { data: session } = useSession();
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
+  const [todayAttendance, setTodayAttendance] = useState<TodayAttendance | null>(null);
+  const [leaveStats, setLeaveStats] = useState<LeaveStats>({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    remaining: 0,
+    total: 20,
+  });
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
+    present: 0,
+    absent: 0,
+    halfDay: 0,
+    leave: 0,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -57,6 +78,133 @@ export default function EmployeePage() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch employee data
+  const fetchEmployeeData = useCallback(async () => {
+    if (!session?.user?.email) return;
+
+    try {
+      const res = await fetch(`/api/employees?email=${session.user.email}`);
+      const data = await res.json();
+      if (data.employee) {
+        setEmployeeData(data.employee);
+        return data.employee.id;
+      }
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+    }
+    return null;
+  }, [session?.user?.email]);
+
+  // Fetch today's attendance
+  const fetchTodayAttendance = useCallback(async (employeeId: string) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const res = await fetch(
+        `/api/attendance?employeeId=${employeeId}&startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
+      );
+      const data = await res.json();
+      
+      if (data.attendanceRecords && data.attendanceRecords.length > 0) {
+        const todayRecord = data.attendanceRecords[0];
+        setTodayAttendance({
+          status: todayRecord.status?.toLowerCase() || "not-marked",
+          checkIn: todayRecord.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+          }) : null,
+          checkOut: todayRecord.checkOut ? new Date(todayRecord.checkOut).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: true 
+          }) : null,
+        });
+      } else {
+        setTodayAttendance({
+          status: "not-marked",
+          checkIn: null,
+          checkOut: null,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching today's attendance:", error);
+    }
+  }, []);
+
+  // Fetch leave stats
+  const fetchLeaveStats = useCallback(async (employeeId: string) => {
+    try {
+      const res = await fetch(`/api/leave?employeeId=${employeeId}`);
+      const data = await res.json();
+      
+      if (data.leaveRequests) {
+        const pending = data.leaveRequests.filter((lr: any) => lr.status === "PENDING").length;
+        const approved = data.leaveRequests.filter((lr: any) => lr.status === "APPROVED").length;
+        const rejected = data.leaveRequests.filter((lr: any) => lr.status === "REJECTED").length;
+        const totalDays = data.leaveRequests
+          .filter((lr: any) => lr.status === "APPROVED")
+          .reduce((sum: number, lr: any) => sum + (lr.days || 0), 0);
+
+        setLeaveStats({
+          pending,
+          approved,
+          rejected,
+          remaining: 20 - totalDays,
+          total: 20,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching leave stats:", error);
+    }
+  }, []);
+
+  // Fetch monthly attendance stats
+  const fetchMonthlyAttendance = useCallback(async (employeeId: string) => {
+    try {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      const res = await fetch(
+        `/api/attendance?employeeId=${employeeId}&startDate=${firstDayOfMonth.toISOString()}&endDate=${lastDayOfMonth.toISOString()}`
+      );
+      const data = await res.json();
+      
+      if (data.attendanceRecords) {
+        const stats: AttendanceStats = {
+          present: data.attendanceRecords.filter((a: any) => a.status === "PRESENT").length,
+          absent: data.attendanceRecords.filter((a: any) => a.status === "ABSENT").length,
+          halfDay: data.attendanceRecords.filter((a: any) => a.status === "HALF_DAY").length,
+          leave: data.attendanceRecords.filter((a: any) => a.status === "LEAVE").length,
+        };
+        setAttendanceStats(stats);
+      }
+    } catch (error) {
+      console.error("Error fetching monthly attendance:", error);
+    }
+  }, []);
+
+  // Load all data
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      const employeeId = await fetchEmployeeData();
+      if (employeeId) {
+        await Promise.all([
+          fetchTodayAttendance(employeeId),
+          fetchLeaveStats(employeeId),
+          fetchMonthlyAttendance(employeeId),
+        ]);
+      }
+      setLoading(false);
+    };
+    loadData();
+  }, [fetchEmployeeData, fetchTodayAttendance, fetchLeaveStats, fetchMonthlyAttendance]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -73,6 +221,14 @@ export default function EmployeePage() {
     }
   };
 
+  if (loading || !employeeData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -80,11 +236,11 @@ export default function EmployeePage() {
         <div className="flex items-center gap-4">
           <Avatar className="h-16 w-16 border-2 border-white/30">
             <AvatarFallback className="bg-white/20 text-white text-xl">
-              {employeeData.name.split(" ").map(n => n[0]).join("")}
+              {employeeData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {employeeData.name.split(" ")[0]}!</h1>
+            <h1 className="text-2xl font-bold">Welcome back, {employeeData.fullName.split(" ")[0]}!</h1>
             <p className="text-blue-100">{employeeData.designation} • {employeeData.department}</p>
           </div>
         </div>
@@ -109,9 +265,9 @@ export default function EmployeePage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              {getStatusBadge(todayAttendance.status)}
+              {getStatusBadge(todayAttendance?.status || "not-marked")}
             </div>
-            {todayAttendance.checkIn && (
+            {todayAttendance?.checkIn && (
               <p className="text-xs text-muted-foreground mt-2">
                 Check-in: {todayAttendance.checkIn}
                 {todayAttendance.checkOut && ` • Check-out: ${todayAttendance.checkOut}`}
@@ -197,17 +353,33 @@ export default function EmployeePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentNotifications.map((notification) => (
-                <div key={notification.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                  {notification.type === "success" && <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />}
-                  {notification.type === "info" && <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />}
-                  {notification.type === "warning" && <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />}
+              {leaveStats.pending > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground">{notification.time}</p>
+                    <p className="text-sm font-medium">You have {leaveStats.pending} pending leave request(s)</p>
+                    <p className="text-xs text-muted-foreground">Awaiting approval</p>
                   </div>
                 </div>
-              ))}
+              )}
+              {leaveStats.approved > 0 && (
+                <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">You have {leaveStats.approved} approved leave(s) this year</p>
+                    <p className="text-xs text-muted-foreground">Great job!</p>
+                  </div>
+                </div>
+              )}
+              {!todayAttendance?.checkIn && (
+                <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Remember to check in today</p>
+                    <p className="text-xs text-muted-foreground">Mark your attendance</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -221,20 +393,20 @@ export default function EmployeePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">22</div>
+            <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{attendanceStats.present}</div>
               <p className="text-sm text-green-600">Present</p>
             </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">1</div>
+            <div className="text-center p-4 bg-red-50 dark:bg-red-950/30 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">{attendanceStats.absent}</div>
               <p className="text-sm text-red-600">Absent</p>
             </div>
-            <div className="text-center p-4 bg-amber-50 rounded-lg">
-              <div className="text-2xl font-bold text-amber-600">0</div>
+            <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+              <div className="text-2xl font-bold text-amber-600">{attendanceStats.halfDay}</div>
               <p className="text-sm text-amber-600">Half Day</p>
             </div>
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">2</div>
+            <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{attendanceStats.leave}</div>
               <p className="text-sm text-blue-600">On Leave</p>
             </div>
           </div>

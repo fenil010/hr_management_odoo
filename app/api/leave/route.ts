@@ -66,11 +66,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Calculate number of days
+    // Calculate number of days (inclusive of both start and end dates)
     const start = new Date(startDate);
     const end = new Date(endDate);
+    
+    // Normalize to start of day (midnight) to avoid timezone issues
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in days
     const timeDiff = end.getTime() - start.getTime();
-    const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+    const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    
+    // Add 1 because both start and end dates are inclusive
+    const days = daysDiff + 1;
+    
+    // Validate that days is at least 1
+    if (days < 1) {
+      return NextResponse.json({ error: "End date must be on or after start date" }, { status: 400 });
+    }
 
     // Create leave request
     const leaveRequest = await prisma.leaveRequest.create({

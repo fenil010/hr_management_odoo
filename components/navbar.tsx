@@ -88,6 +88,7 @@ export default function Navbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isAdmin = pathname?.startsWith("/admin");
 
   // Prevent hydration mismatch
@@ -95,8 +96,17 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/login" });
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await signOut({ callbackUrl: "/login", redirect: true });
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force redirect even if signOut fails
+      window.location.href = "/login";
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -324,11 +334,12 @@ export default function Navbar() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-lg cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                  className="rounded-lg cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950 disabled:opacity-50"
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

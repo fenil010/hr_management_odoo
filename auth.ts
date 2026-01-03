@@ -25,6 +25,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const user = await prisma.user.findUnique({
             where: { email },
             include: { employee: true },
+          }).catch((err: unknown) => {
+            console.error("💥 Database error finding user:", err);
+            return null;
           });
 
           console.log("👤 User found:", user ? "Yes" : "No");
@@ -32,6 +35,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (!user || !user.isActive) {
             console.log("❌ User not found or inactive");
             throw new Error("Invalid credentials");
+          }
+
+          // Check if email is verified
+          if (!user.emailVerified) {
+            console.log("❌ Email not verified");
+            throw new Error("Please verify your email address before logging in. Check your inbox for the verification code.");
           }
 
           const isPasswordValid = await bcrypt.compare(password, user.password);

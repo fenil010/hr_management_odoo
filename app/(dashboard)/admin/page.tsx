@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -24,44 +24,34 @@ import {
   CheckCircle2,
   RefreshCw,
   XCircle,
-  Banknote
+  Banknote,
+  Loader2
 } from "lucide-react";
+
+interface LeaveRequest {
+  id: string;
+  employee: { fullName: string };
+  type: string;
+  days: number;
+  status: string;
+  createdAt: string;
+}
 
 export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Real-time stats
   const [stats, setStats] = useState({
-    totalEmployees: 170,
-    presentToday: 142,
-    pendingLeaves: 8,
-    monthlyPayroll: 7800000, // 78 Lakhs
+    totalEmployees: 0,
+    presentToday: 0,
+    pendingLeaves: 0,
+    monthlyPayroll: 0,
   });
 
-  const [recentLeaveRequests, setRecentLeaveRequests] = useState([
-    { id: 1, name: "John Smith", type: "Sick Leave", days: 2, status: "pending", date: "Jan 3, 2026" },
-    { id: 2, name: "Sarah Johnson", type: "Vacation", days: 5, status: "approved", date: "Jan 2, 2026" },
-    { id: 3, name: "Mike Davis", type: "Personal", days: 1, status: "pending", date: "Jan 2, 2026" },
-    { id: 4, name: "Emily Brown", type: "Vacation", days: 3, status: "rejected", date: "Jan 1, 2026" },
-    { id: 5, name: "James Wilson", type: "Sick Leave", days: 1, status: "approved", date: "Dec 31, 2025" },
-  ]);
-
-  const [topPerformers] = useState([
-    { name: "Alice Chen", department: "Engineering", score: 98, avatar: "AC" },
-    { name: "Bob Martinez", department: "Sales", score: 96, avatar: "BM" },
-    { name: "Carol White", department: "Marketing", score: 94, avatar: "CW" },
-    { name: "David Lee", department: "Support", score: 92, avatar: "DL" },
-    { name: "Eva Garcia", department: "HR", score: 90, avatar: "EG" },
-  ]);
-
-  const [upcomingEvents] = useState([
-    { title: "Team Meeting", date: "Jan 4, 2026", time: "10:00 AM", type: "meeting" },
-    { title: "Payroll Processing", date: "Jan 5, 2026", time: "9:00 AM", type: "payroll" },
-    { title: "Performance Reviews", date: "Jan 10, 2026", time: "2:00 PM", type: "review" },
-    { title: "Company Holiday", date: "Jan 26, 2026", time: "All Day", type: "holiday" },
-  ]);
+  const [recentLeaveRequests, setRecentLeaveRequests] = useState<LeaveRequest[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -72,26 +62,79 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleRefresh = () => {
+  // Fetch all dashboard data
+  const fetchDashboardData = useCallback(async () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      // Simulate data refresh with slight variations
-      setStats({
-        totalEmployees: 170 + Math.floor(Math.random() * 3),
-        presentToday: 140 + Math.floor(Math.random() * 10),
-        pendingLeaves: 5 + Math.floor(Math.random() * 6),
-        monthlyPayroll: 7800000 + Math.floor(Math.random() * 100000),
-      });
-      setIsRefreshing(false);
-    }, 500);
-  };
+    try {
+      // Fetch employees
+      const employeesRes = await fetch("/api/employees");
+      const employeesData = await employeesRes.json();
+      const totalEmployees = employeesData.employees?.length || 0;
 
-  const handleLeaveAction = (id: number, action: "approve" | "reject") => {
-    setRecentLeaveRequests(prev => 
-      prev.map(req => 
-        req.id === id ? { ...req, status: action === "approve" ? "approved" : "rejected" } : req
-      )
-    );
+      // Fetch today's attendance
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const attendanceRes = await fetch(
+        `/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
+      );
+      const attendanceData = await attendanceRes.json();
+      const presentToday = attendanceData.attendanceRecords?.filter((a: any) => 
+        a.status === "PRESENT" || a.status === "HALF_DAY"
+      ).length || 0;
+
+      // Fetch leave requests
+      const leaveRes = await fetch("/api/leave");
+      const leaveData = await leaveRes.json();
+      const allLeaves = leaveData.leaveRequests || [];
+      const pendingLeaves = allLeaves.filter((lr: any) => lr.status === "PENDING").length;
+      
+      // Get recent leave requests (latest 5)
+      const recentLeaves = allLeaves
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5);
+
+      // Fetch payroll - calculate total monthly payroll
+      let monthlyPayroll = 0;
+      if (employeesData.employees) {
+        for (const emp of employeesData.employees) {
+          try {
+            const payrollRes = await fetch(`/api/payroll?employeeId=${emp.id}`);
+            const payrollData = await payrollRes.json();
+            if (payrollData.payroll) {
+              monthlyPayroll += payrollData.payroll.netSalary || 0;
+            }
+          } catch (error) {
+            console.error(`Error fetching payroll for ${emp.id}:`, error);
+          }
+        }
+      }
+
+      setStats({
+        totalEmployees,
+        presentToday,
+        pendingLeaves,
+        monthlyPayroll,
+      });
+
+      setRecentLeaveRequests(recentLeaves);
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setLoading(false);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const handleRefresh = () => {
+    fetchDashboardData();
   };
 
   const formatCurrency = (amount: number) => {
@@ -302,125 +345,94 @@ export default function AdminPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentLeaveRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9">
-                      <AvatarFallback className="text-xs">
-                        {request.name.split(" ").map(n => n[0]).join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm">{request.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {request.type} • {request.days} day{request.days > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{request.date}</span>
-                    {request.status === "pending" ? (
-                      <div className="flex gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
-                          onClick={() => handleLeaveAction(request.id, "approve")}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-100"
-                          onClick={() => handleLeaveAction(request.id, "reject")}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : recentLeaveRequests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No leave requests</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentLeaveRequests.map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9">
+                        <AvatarFallback className="text-xs">
+                          {request.employee.fullName.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-sm">{request.employee.fullName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {request.type} • {request.days} day{request.days > 1 ? "s" : ""}
+                        </p>
                       </div>
-                    ) : (
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
                       <Badge
                         variant={
-                          request.status === "approved"
+                          request.status === "APPROVED"
                             ? "default"
-                            : "destructive"
+                            : request.status === "REJECTED"
+                            ? "destructive"
+                            : "secondary"
                         }
                         className="capitalize"
                       >
-                        {request.status === "approved" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                        {request.status}
+                        {request.status === "APPROVED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                        {request.status.toLowerCase()}
                       </Badge>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Top Performers */}
+        {/* Quick Stats Summary */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Performers</CardTitle>
-            <CardDescription>This month&apos;s best employees</CardDescription>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Manage your organization</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {topPerformers.map((performer, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    {index + 1}
-                  </div>
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">{performer.avatar}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{performer.name}</p>
-                    <p className="text-xs text-muted-foreground">{performer.department}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm">{performer.score}%</p>
-                    <Progress value={performer.score} className="w-16 h-1.5" />
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/admin/employees">
+                  <Users className="h-4 w-4 mr-2" />
+                  View All Employees
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/admin/attendance">
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Manage Attendance
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/admin/leave-requests">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Review Leave Requests
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/admin/payroll">
+                  <IndianRupee className="h-4 w-4 mr-2" />
+                  Process Payroll
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Upcoming Events */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Events</CardTitle>
-          <CardDescription>Important dates and deadlines</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {upcomingEvents.map((event, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
-                <div className={`p-2 rounded-lg ${
-                  event.type === "meeting" ? "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400" :
-                  event.type === "payroll" ? "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400" :
-                  event.type === "review" ? "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400" :
-                  "bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400"
-                }`}>
-                  {event.type === "meeting" ? <Users className="h-4 w-4" /> :
-                   event.type === "payroll" ? <Banknote className="h-4 w-4" /> :
-                   event.type === "review" ? <FileText className="h-4 w-4" /> :
-                   <Calendar className="h-4 w-4" />}
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{event.title}</p>
-                  <p className="text-xs text-muted-foreground">{event.date}</p>
-                  <p className="text-xs text-muted-foreground">{event.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [requiresVerification, setRequiresVerification] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +28,16 @@ export default function RegisterPage() {
         body: JSON.stringify({ name, email, password }),
       });
       
+      const data = await res.json();
+      
       if (res.ok) {
-        router.push("/login?registered=true");
+        if (data.requiresVerification) {
+          // Redirect to verification page with email
+          router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+        } else {
+          router.push("/login?registered=true");
+        }
       } else {
-        const data = await res.json();
         setError(data.error || "Registration failed");
       }
     } catch (error) {

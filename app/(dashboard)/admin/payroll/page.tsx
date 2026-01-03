@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   IndianRupee,
   Search,
@@ -24,29 +33,22 @@ import {
   CheckCircle2,
   AlertCircle,
   Banknote,
-  FileText
+  FileText,
+  Edit
 } from "lucide-react";
 
-// Payroll data
-const initialPayrollData = [
-  { id: 1, name: "John Doe", email: "john@dayflow.com", department: "Engineering", baseSalary: 75000, bonus: 7500, deductions: 5000, netSalary: 77500, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 2, name: "Jane Smith", email: "jane@dayflow.com", department: "Design", baseSalary: 65000, bonus: 5000, deductions: 4500, netSalary: 65500, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 3, name: "Mike Davis", email: "mike@dayflow.com", department: "Marketing", baseSalary: 70000, bonus: 10000, deductions: 5200, netSalary: 74800, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 4, name: "Sarah Johnson", email: "sarah@dayflow.com", department: "HR", baseSalary: 68000, bonus: 6000, deductions: 4800, netSalary: 69200, status: "pending", paidDate: null },
-  { id: 5, name: "Robert Brown", email: "robert@dayflow.com", department: "Engineering", baseSalary: 60000, bonus: 4000, deductions: 4200, netSalary: 59800, status: "pending", paidDate: null },
-  { id: 6, name: "Emily Wilson", email: "emily@dayflow.com", department: "Sales", baseSalary: 55000, bonus: 12000, deductions: 4000, netSalary: 63000, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 7, name: "David Lee", email: "david@dayflow.com", department: "Engineering", baseSalary: 72000, bonus: 8000, deductions: 5100, netSalary: 74900, status: "pending", paidDate: null },
-  { id: 8, name: "Lisa Chen", email: "lisa@dayflow.com", department: "Finance", baseSalary: 62000, bonus: 5500, deductions: 4400, netSalary: 63100, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 9, name: "James Taylor", email: "james@dayflow.com", department: "Support", baseSalary: 50000, bonus: 3000, deductions: 3500, netSalary: 49500, status: "pending", paidDate: null },
-  { id: 10, name: "Amanda White", email: "amanda@dayflow.com", department: "Marketing", baseSalary: 45000, bonus: 2500, deductions: 3200, netSalary: 44300, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 11, name: "Chris Martin", email: "chris@dayflow.com", department: "Engineering", baseSalary: 80000, bonus: 10000, deductions: 5800, netSalary: 84200, status: "paid", paidDate: "Jan 1, 2026" },
-  { id: 12, name: "Rachel Green", email: "rachel@dayflow.com", department: "Design", baseSalary: 52000, bonus: 4000, deductions: 3700, netSalary: 52300, status: "processing", paidDate: null },
-];
-
-const months = [
-  "January 2026", "December 2025", "November 2025", "October 2025",
-  "September 2025", "August 2025", "July 2025", "June 2025"
-];
+interface PayrollData {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  baseSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  status: string;
+  paidDate: string | null;
+}
 
 export default function AdminPayrollPage() {
   const [mounted, setMounted] = useState(false);
@@ -55,9 +57,36 @@ export default function AdminPayrollPage() {
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("January 2026");
-  const [payrollData, setPayrollData] = useState(initialPayrollData);
+  const [payrollData, setPayrollData] = useState<PayrollData[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<PayrollData | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    baseSalary: 0,
+    hra: 0,
+    allowances: 0,
+    deductions: 0,
+  });
+  const [adminBudget, setAdminBudget] = useState(600000); // Admin's available budget
+  const [isAdjustBudgetOpen, setIsAdjustBudgetOpen] = useState(false);
+
+  // Month options
+  const months = [
+    "January 2026",
+    "February 2026",
+    "March 2026",
+    "April 2026",
+    "May 2026",
+    "June 2026",
+    "July 2026",
+    "August 2026",
+    "September 2026",
+    "October 2026",
+    "November 2026",
+    "December 2026",
+  ];
 
   useEffect(() => {
     setMounted(true);
@@ -65,8 +94,73 @@ export default function AdminPayrollPage() {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
+    fetchPayrollData();
     return () => clearInterval(timer);
   }, []);
+
+  const fetchPayrollData = async () => {
+    setIsRefreshing(true);
+    setLoading(true);
+    try {
+      // Get all employees
+      const employeesRes = await fetch("/api/employees");
+      const employeesData = await employeesRes.json();
+      const employees = employeesData.employees || [];
+
+      // Fetch payroll for each employee
+      const payrollList = await Promise.all(
+        employees.map(async (emp: any) => {
+          let payrollInfo: {
+            basicSalary?: number;
+            baseSalary?: number;
+            hra: number;
+            allowances: number;
+            deductions: number;
+            netSalary: number;
+          } = {
+            basicSalary: 0,
+            hra: 0,
+            allowances: 0,
+            deductions: 0,
+            netSalary: 0,
+          };
+
+          try {
+            const payrollRes = await fetch(`/api/payroll?employeeId=${emp.id}`);
+            const payrollData = await payrollRes.json();
+            if (payrollData.payroll) {
+              payrollInfo = payrollData.payroll;
+            }
+          } catch (error) {
+            console.error(`Error fetching payroll for ${emp.id}:`, error);
+          }
+
+          // Estimate bonus (can be updated later when bonus field is added)
+          const bonus = Math.round((payrollInfo.basicSalary || 0) * 0.1); // 10% of base
+
+          return {
+            id: emp.id,
+            name: emp.fullName,
+            email: emp.user?.email || "",
+            department: emp.department,
+            baseSalary: payrollInfo.basicSalary || 0,
+            bonus,
+            deductions: payrollInfo.deductions || 0,
+            netSalary: (payrollInfo.basicSalary || 0) + (payrollInfo.hra || 0) + (payrollInfo.allowances || 0) - (payrollInfo.deductions || 0),
+            status: "pending",
+            paidDate: null,
+          };
+        })
+      );
+
+      setPayrollData(payrollList);
+    } catch (error) {
+      console.error("Error fetching payroll data:", error);
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   // Calculate stats
   const totalBaseSalary = payrollData.reduce((sum, e) => sum + e.baseSalary, 0);
@@ -89,18 +183,94 @@ export default function AdminPayrollPage() {
   });
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setPayrollData([...initialPayrollData]);
-      setIsRefreshing(false);
-    }, 500);
+    fetchPayrollData();
+  };
+
+  const handleExportPayslips = () => {
+    // Create CSV content
+    const headers = ["Employee Name", "Email", "Department", "Base Salary", "HRA", "Allowances", "Deductions", "Net Salary", "Status"];
+    const rows = filteredData.map(emp => [
+      emp.name,
+      emp.email,
+      emp.department,
+      emp.baseSalary.toString(),
+      (emp.baseSalary * 0.1).toString(), // Estimate HRA as 10% of base
+      (emp.bonus).toString(),
+      emp.deductions.toString(),
+      emp.netSalary.toString(),
+      emp.status
+    ]);
+
+    // Create CSV string
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `payslips_${selectedMonth.replace(/\s/g, "_")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleEditEmployee = (employee: PayrollData) => {
+    setSelectedEmployee(employee);
+    setEditFormData({
+      baseSalary: employee.baseSalary,
+      hra: Math.round(employee.baseSalary * 0.1),
+      allowances: employee.bonus,
+      deductions: employee.deductions,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEmployeeSalary = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      const res = await fetch("/api/payroll", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeId: selectedEmployee.id,
+          basicSalary: editFormData.baseSalary,
+          hra: editFormData.hra,
+          allowances: editFormData.allowances,
+          deductions: editFormData.deductions,
+        }),
+      });
+
+      if (res.ok) {
+        // Update local state
+        setPayrollData(prev => prev.map(emp => 
+          emp.id === selectedEmployee.id 
+            ? {
+                ...emp,
+                baseSalary: editFormData.baseSalary,
+                bonus: editFormData.allowances,
+                deductions: editFormData.deductions,
+                netSalary: (editFormData.baseSalary + editFormData.hra + editFormData.allowances) - editFormData.deductions,
+              }
+            : emp
+        ));
+        setIsEditDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Error updating payroll:", error);
+    }
   };
 
   const handleProcessPayroll = () => {
     setIsProcessing(true);
     setTimeout(() => {
       setPayrollData(prev => prev.map(e => 
-        e.status === "pending" ? { ...e, status: "processing" } : e
+        e.status === "pending" ? { ...e, status: "paid" } : e
       ));
       setIsProcessing(false);
     }, 1000);
@@ -113,6 +283,10 @@ export default function AdminPayrollPage() {
       maximumFractionDigits: 0
     }).format(amount);
   };
+
+  // Calculate remaining budget
+  const totalPayroll = payrollData.reduce((sum, e) => sum + e.netSalary, 0);
+  const remainingBudget = adminBudget - totalPayroll;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -129,11 +303,45 @@ export default function AdminPayrollPage() {
 
   return (
     <div className="space-y-6">
+      {/* Admin Budget Card */}
+      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950">
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Total Budget Allocated</p>
+              <p className="text-3xl font-bold text-blue-600">{formatCurrency(adminBudget)}</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsAdjustBudgetOpen(true)}
+                className="mt-2"
+              >
+                Adjust Budget
+              </Button>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Total Payroll (All Employees)</p>
+              <p className="text-3xl font-bold text-amber-600">{formatCurrency(totalPayroll)}</p>
+              <p className="text-xs text-muted-foreground mt-2">{payrollData.length} employees</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
+              <p className={`text-3xl font-bold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(remainingBudget)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {remainingBudget >= 0 ? 'Available' : 'Overbudget'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
-          <p className="text-muted-foreground">Process and manage employee salaries</p>
+          <h1 className="text-3xl font-bold tracking-tight">Payroll Details</h1>
+          <p className="text-muted-foreground">Manage and send employee salaries</p>
         </div>
         <div className="flex items-center gap-2">
           {mounted && currentTime && (
@@ -226,7 +434,7 @@ export default function AdminPayrollPage() {
               </Badge>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExportPayslips}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Payslips
               </Button>
@@ -302,10 +510,11 @@ export default function AdminPayrollPage() {
                     <th className="text-left p-4 font-medium">Employee</th>
                     <th className="text-left p-4 font-medium">Department</th>
                     <th className="text-right p-4 font-medium">Base Salary</th>
-                    <th className="text-right p-4 font-medium">Bonus</th>
+                    <th className="text-right p-4 font-medium">HRA</th>
+                    <th className="text-right p-4 font-medium">Allowances</th>
                     <th className="text-right p-4 font-medium">Deductions</th>
                     <th className="text-right p-4 font-medium">Net Salary</th>
-                    <th className="text-left p-4 font-medium">Status</th>
+                    <th className="text-center p-4 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,6 +539,9 @@ export default function AdminPayrollPage() {
                       <td className="p-4 text-right font-medium">
                         {formatCurrency(employee.baseSalary)}
                       </td>
+                      <td className="p-4 text-right font-medium">
+                        {formatCurrency(Math.round(employee.baseSalary * 0.25))}
+                      </td>
                       <td className="p-4 text-right text-green-600 font-medium">
                         +{formatCurrency(employee.bonus)}
                       </td>
@@ -339,8 +551,14 @@ export default function AdminPayrollPage() {
                       <td className="p-4 text-right font-bold text-lg">
                         {formatCurrency(employee.netSalary)}
                       </td>
-                      <td className="p-4">
-                        {getStatusBadge(employee.status)}
+                      <td className="p-4 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditEmployee(employee)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -349,9 +567,11 @@ export default function AdminPayrollPage() {
                   <tr className="bg-muted/50 font-bold">
                     <td className="p-4" colSpan={2}>Total ({filteredData.length} employees)</td>
                     <td className="p-4 text-right">{formatCurrency(filteredData.reduce((sum, e) => sum + e.baseSalary, 0))}</td>
+                    <td className="p-4 text-right">{formatCurrency(filteredData.reduce((sum, e) => sum + Math.round(e.baseSalary * 0.25), 0))}</td>
                     <td className="p-4 text-right text-green-600">+{formatCurrency(filteredData.reduce((sum, e) => sum + e.bonus, 0))}</td>
                     <td className="p-4 text-right text-red-600">-{formatCurrency(filteredData.reduce((sum, e) => sum + e.deductions, 0))}</td>
                     <td className="p-4 text-right text-lg">{formatCurrency(filteredData.reduce((sum, e) => sum + e.netSalary, 0))}</td>
+                    <td className="p-4"></td>
                     <td className="p-4"></td>
                   </tr>
                 </tfoot>
@@ -365,6 +585,129 @@ export default function AdminPayrollPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Salary Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Salary - {selectedEmployee?.name}</DialogTitle>
+            <DialogDescription>
+              Update the salary structure for this employee
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEmployee && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="baseSalary">Base Salary</Label>
+                <Input
+                  id="baseSalary"
+                  type="number"
+                  value={editFormData.baseSalary}
+                  onChange={(e) => setEditFormData({ ...editFormData, baseSalary: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="hra">HRA (House Rent Allowance)</Label>
+                <Input
+                  id="hra"
+                  type="number"
+                  value={editFormData.hra}
+                  onChange={(e) => setEditFormData({ ...editFormData, hra: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="allowances">Other Allowances</Label>
+                <Input
+                  id="allowances"
+                  type="number"
+                  value={editFormData.allowances}
+                  onChange={(e) => setEditFormData({ ...editFormData, allowances: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="deductions">Deductions (PF, Tax, etc.)</Label>
+                <Input
+                  id="deductions"
+                  type="number"
+                  value={editFormData.deductions}
+                  onChange={(e) => setEditFormData({ ...editFormData, deductions: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                />
+              </div>
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm text-muted-foreground">Gross Salary (estimated)</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(editFormData.baseSalary + editFormData.hra + editFormData.allowances)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">Net Salary (estimated)</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency((editFormData.baseSalary + editFormData.hra + editFormData.allowances) - editFormData.deductions)}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEmployeeSalary}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Budget Dialog */}
+      <Dialog open={isAdjustBudgetOpen} onOpenChange={setIsAdjustBudgetOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Payroll Budget</DialogTitle>
+            <DialogDescription>
+              Set the total monthly budget available for employee salaries
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="budgetAmount">Total Monthly Budget</Label>
+              <Input
+                id="budgetAmount"
+                type="number"
+                value={adminBudget}
+                onChange={(e) => setAdminBudget(parseFloat(e.target.value) || 0)}
+                className="mt-1"
+              />
+            </div>
+            <div className="bg-muted p-4 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Budget Allocated:</span>
+                <span className="font-semibold">{formatCurrency(adminBudget)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Total Payroll:</span>
+                <span className="font-semibold">{formatCurrency(totalPayroll)}</span>
+              </div>
+              <div className="h-px bg-border"></div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Remaining Balance:</span>
+                <span className={`font-bold text-lg ${adminBudget - totalPayroll >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(adminBudget - totalPayroll)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAdjustBudgetOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setIsAdjustBudgetOpen(false)}>
+              Save Budget
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

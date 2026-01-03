@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,43 +18,143 @@ import {
   Save,
   X,
   Camera,
-  Shield
+  Shield,
+  Loader2
 } from "lucide-react";
 
-// Mock employee data - In production, fetch from API
-const employeeData = {
-  id: "EMP-001",
-  fullName: "John Doe",
-  email: "john@dayflow.com",
-  phone: "+1 (555) 123-4567",
-  address: "123 Main Street, New York, NY 10001",
-  department: "Engineering",
-  designation: "Software Developer",
-  joiningDate: "2024-03-15",
-  role: "EMPLOYEE",
-  profilePhoto: null,
-};
+interface EmployeeData {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  email?: string;
+  phone: string | null;
+  address: string | null;
+  department: string;
+  designation: string;
+  joiningDate: string;
+  role?: string;
+  profileImage?: string | null;
+  user?: {
+    email: string;
+    role: string;
+  };
+}
 
 export default function EmployeeProfilePage() {
+  const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [employeeData, setEmployeeData] = useState<EmployeeData | null>(null);
   const [formData, setFormData] = useState({
-    phone: employeeData.phone,
-    address: employeeData.address,
+    phone: "",
+    address: "",
   });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleSave = () => {
-    // In production, save to API
-    console.log("Saving:", formData);
-    setIsEditing(false);
+  // Fetch employee data
+  const fetchEmployeeData = useCallback(async () => {
+    if (!session?.user?.email) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/employees?email=${session.user.email}`);
+      const data = await res.json();
+      if (data.employee) {
+        setEmployeeData(data.employee);
+        setFormData({
+          phone: data.employee.phone || "",
+          address: data.employee.address || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      setError("Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.email]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
+
+  const handleSave = async () => {
+    if (!employeeData) return;
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch("/api/employees", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: employeeData.id,
+          phone: formData.phone,
+          address: formData.address,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update profile");
+      }
+
+      setSuccess("Profile updated successfully!");
+      setIsEditing(false);
+      // Refresh employee data
+      await fetchEmployeeData();
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      phone: employeeData.phone,
-      address: employeeData.address,
-    });
+    if (employeeData) {
+      setFormData({
+        phone: employeeData.phone || "",
+        address: employeeData.address || "",
+      });
+    }
     setIsEditing(false);
+    setError("");
+    setSuccess("");
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!employeeData) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+          <p className="text-muted-foreground">View and manage your personal information</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              {error || "Failed to load profile data. Please try again."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -70,17 +171,32 @@ export default function EmployeeProfilePage() {
           </Button>
         ) : (
           <div className="flex gap-2 mt-4 md:mt-0">
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" onClick={handleCancel} disabled={saving}>
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+              ) : (
+                <><Save className="h-4 w-4 mr-2" />Save Changes</>
+              )}
             </Button>
           </div>
         )}
       </div>
+
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="bg-red-100 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg">
+          {success}
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Profile Card */}
@@ -89,13 +205,16 @@ export default function EmployeeProfilePage() {
             <div className="flex flex-col items-center text-center">
               <div className="relative">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={employeeData.profilePhoto || ""} />
-                  <AvatarFallback className="text-2xl bg-blue-100 text-blue-600">
-                    {employeeData.fullName.split(" ").map(n => n[0]).join("")}
+                  <AvatarImage src={employeeData.profileImage || ""} />
+                  <AvatarFallback className="text-2xl bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                    {employeeData.fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
                 {isEditing && (
-                  <button className="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition-colors">
+                  <button 
+                    className="absolute bottom-0 right-0 p-2 bg-blue-500 rounded-full text-white hover:bg-blue-600 transition-colors"
+                    title="Change profile picture (Coming soon)"
+                  >
                     <Camera className="h-4 w-4" />
                   </button>
                 )}
@@ -104,7 +223,7 @@ export default function EmployeeProfilePage() {
               <p className="text-muted-foreground">{employeeData.designation}</p>
               <Badge className="mt-2" variant="secondary">
                 <Shield className="h-3 w-3 mr-1" />
-                {employeeData.role}
+                {employeeData.user?.role || employeeData.role || "EMPLOYEE"}
               </Badge>
               
               <div className="w-full mt-6 pt-6 border-t">
@@ -140,7 +259,7 @@ export default function EmployeeProfilePage() {
                   Employee ID
                 </label>
                 <div className="p-3 bg-muted rounded-lg font-mono">
-                  {employeeData.id}
+                  {employeeData.employeeCode}
                 </div>
               </div>
               
@@ -160,7 +279,7 @@ export default function EmployeeProfilePage() {
                   Email Address
                 </label>
                 <div className="p-3 bg-muted rounded-lg">
-                  {employeeData.email}
+                  {employeeData.user?.email || employeeData.email || "N/A"}
                 </div>
               </div>
 
@@ -216,11 +335,12 @@ export default function EmployeeProfilePage() {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      placeholder="Enter phone number"
+                      className="w-full p-3 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent outline-none"
                     />
                   ) : (
                     <div className="p-3 bg-muted rounded-lg">
-                      {employeeData.phone}
+                      {employeeData.phone || "Not provided"}
                     </div>
                   )}
                 </div>
@@ -234,12 +354,13 @@ export default function EmployeeProfilePage() {
                     <textarea
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Enter your address"
                       rows={3}
-                      className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                      className="w-full p-3 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent outline-none resize-none placeholder:text-muted-foreground"
                     />
                   ) : (
                     <div className="p-3 bg-muted rounded-lg">
-                      {employeeData.address}
+                      {employeeData.address || "Not provided"}
                     </div>
                   )}
                 </div>

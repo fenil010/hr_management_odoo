@@ -18,6 +18,13 @@ import {
   Loader2,
   RefreshCw
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LeaveRequest {
   id: string;
@@ -67,6 +74,19 @@ const getLeaveTypeLabel = (type: string) => {
   }
 };
 
+const getLeaveTypeDisplayText = (type: string, balance: { paid: { remaining: number }, sick: { remaining: number }, unpaid: { remaining: number } }) => {
+  switch (type) {
+    case "PAID":
+      return `Paid Leave (${balance.paid.remaining} days remaining)`;
+    case "SICK":
+      return `Sick Leave (${balance.sick.remaining} days remaining)`;
+    case "UNPAID":
+      return `Unpaid Leave (${balance.unpaid.remaining} days remaining)`;
+    default:
+      return "Select leave type";
+  }
+};
+
 export default function EmployeeLeavePage() {
   const { data: session } = useSession();
   const [leaveType, setLeaveType] = useState("PAID");
@@ -109,6 +129,29 @@ export default function EmployeeLeavePage() {
   }, []);
 
   const [calculatedBalance, setCalculatedBalance] = useState(leaveBalance);
+  const [calculatedDays, setCalculatedDays] = useState(0);
+
+  // Calculate days when dates change
+  useEffect(() => {
+    if (fromDate && toDate) {
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+      
+      // Normalize to start of day
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      
+      // Calculate difference in days
+      const timeDiff = end.getTime() - start.getTime();
+      const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      // Add 1 because both dates are inclusive
+      const days = daysDiff + 1;
+      setCalculatedDays(days >= 1 ? days : 0);
+    } else {
+      setCalculatedDays(0);
+    }
+  }, [fromDate, toDate]);
 
   // Fetch employee data
   const fetchEmployee = useCallback(async () => {
@@ -295,56 +338,104 @@ export default function EmployeeLeavePage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Leave Type</label>
-                <select 
-                  value={leaveType}
-                  onChange={(e) => setLeaveType(e.target.value)}
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                >
-                  <option value="PAID">Paid Leave ({calculatedBalance.paid.remaining} days remaining)</option>
-                  <option value="SICK">Sick Leave ({calculatedBalance.sick.remaining} days remaining)</option>
-                  <option value="UNPAID">Unpaid Leave ({calculatedBalance.unpaid.remaining} days remaining)</option>
-                </select>
+                <label htmlFor="leave-type" className="text-sm font-medium">Leave Type</label>
+                <Select value={leaveType} onValueChange={setLeaveType}>
+                  <SelectTrigger id="leave-type" className="w-full bg-background text-foreground border-input hover:bg-accent">
+                    <SelectValue placeholder="Select leave type">
+                      {getLeaveTypeDisplayText(leaveType, calculatedBalance)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-popover-foreground border-border">
+                    <SelectItem 
+                      value="PAID" 
+                      className="cursor-pointer hover:bg-accent focus:bg-accent focus:text-accent-foreground"
+                    >
+                      Paid Leave ({calculatedBalance.paid.remaining} days remaining)
+                    </SelectItem>
+                    <SelectItem 
+                      value="SICK" 
+                      className="cursor-pointer hover:bg-accent focus:bg-accent focus:text-accent-foreground"
+                    >
+                      Sick Leave ({calculatedBalance.sick.remaining} days remaining)
+                    </SelectItem>
+                    <SelectItem 
+                      value="UNPAID" 
+                      className="cursor-pointer hover:bg-accent focus:bg-accent focus:text-accent-foreground"
+                    >
+                      Unpaid Leave ({calculatedBalance.unpaid.remaining} days remaining)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">From Date</label>
+                  <label htmlFor="from-date" className="text-sm font-medium">From Date</label>
                   <input 
+                    id="from-date"
                     type="date" 
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full p-3 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent outline-none"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">To Date</label>
+                  <label htmlFor="to-date" className="text-sm font-medium">To Date</label>
                   <input 
+                    id="to-date"
                     type="date" 
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
                     min={fromDate || new Date().toISOString().split('T')[0]}
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full p-3 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent outline-none"
                     required
                   />
                 </div>
               </div>
 
+              {/* Days Calculation Display */}
+              {calculatedDays > 0 && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Total Days: <span className="font-bold">{calculatedDays}</span> {calculatedDays === 1 ? 'day' : 'days'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {fromDate && toDate && calculatedDays <= 0 && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <span className="text-sm text-red-900 dark:text-red-100">
+                      End date must be on or after start date
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <label className="text-sm font-medium">Reason</label>
+                <label htmlFor="reason" className="text-sm font-medium">Reason</label>
                 <textarea 
+                  id="reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Please provide a reason for your leave request..."
                   rows={4}
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                  className="w-full p-3 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent outline-none resize-none placeholder:text-muted-foreground"
                   required
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || !employee}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isSubmitting || !employee || calculatedDays <= 0 || !fromDate || !toDate || !reason.trim()}
+              >
                 {isSubmitting ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
                 ) : (

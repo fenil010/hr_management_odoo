@@ -38,6 +38,7 @@ async function main() {
       password: adminPassword,
       role: "ADMIN",
       isActive: true,
+      emailVerified: true, // Pre-verified for seed data
     },
   });
 
@@ -52,6 +53,7 @@ async function main() {
       password: employeePassword,
       role: "EMPLOYEE",
       isActive: true,
+      emailVerified: true, // Pre-verified for seed data
     },
   });
 
@@ -61,8 +63,92 @@ async function main() {
       password: employeePassword,
       role: "EMPLOYEE",
       isActive: true,
+      emailVerified: true, // Pre-verified for seed data
     },
   });
+
+  // Create 5 additional employees
+  const employees = [
+    {
+      email: "alice@dayflow.com",
+      name: "Alice Johnson",
+      code: "EMP003",
+      phone: "+1234567892",
+      address: "789 Pine Rd, Boston, MA 02101",
+      designation: "Product Manager",
+      department: "Product",
+      joining: new Date("2023-03-10"),
+    },
+    {
+      email: "bob@dayflow.com",
+      name: "Bob Wilson",
+      code: "EMP004",
+      phone: "+1234567893",
+      address: "321 Elm St, Austin, TX 78701",
+      designation: "Frontend Developer",
+      department: "IT",
+      joining: new Date("2023-04-05"),
+    },
+    {
+      email: "carol@dayflow.com",
+      name: "Carol Davis",
+      code: "EMP005",
+      phone: "+1234567894",
+      address: "654 Maple Ave, Seattle, WA 98101",
+      designation: "Data Analyst",
+      department: "Analytics",
+      joining: new Date("2023-05-12"),
+    },
+    {
+      email: "david@dayflow.com",
+      name: "David Miller",
+      code: "EMP006",
+      phone: "+1234567895",
+      address: "987 Oak Blvd, Denver, CO 80202",
+      designation: "HR Manager",
+      department: "Human Resources",
+      joining: new Date("2023-06-01"),
+    },
+    {
+      email: "emma@dayflow.com",
+      name: "Emma Taylor",
+      code: "EMP007",
+      phone: "+1234567896",
+      address: "246 Birch Ln, Chicago, IL 60601",
+      designation: "Marketing Specialist",
+      department: "Marketing",
+      joining: new Date("2023-07-15"),
+    },
+  ];
+
+  const createdEmployees = [];
+
+  for (const emp of employees) {
+    const user = await prisma.user.create({
+      data: {
+        email: emp.email,
+        password: employeePassword,
+        role: "EMPLOYEE",
+        isActive: true,
+        emailVerified: true,
+      },
+    });
+
+    const employee = await prisma.employee.create({
+      data: {
+        userId: user.id,
+        employeeCode: emp.code,
+        fullName: emp.name,
+        phone: emp.phone,
+        address: emp.address,
+        designation: emp.designation,
+        department: emp.department,
+        joiningDate: emp.joining,
+      },
+    });
+
+    createdEmployees.push(employee);
+  }
 
   console.log("👥 Created employee users");
 
@@ -93,7 +179,7 @@ async function main() {
     },
   });
 
-  console.log("📋 Created employee profiles");
+  const allEmployees = [john, jane, ...createdEmployees];
 
   // Create payroll records
   await prisma.payroll.create({
@@ -118,35 +204,54 @@ async function main() {
     },
   });
 
+  // Payroll for additional employees
+  const payrollData = [
+    { salary: 70000, hra: 17500, allowances: 6000, deductions: 2500 }, // Alice
+    { salary: 50000, hra: 12500, allowances: 4000, deductions: 1500 }, // Bob
+    { salary: 65000, hra: 16250, allowances: 5500, deductions: 2200 }, // Carol
+    { salary: 75000, hra: 18750, allowances: 6500, deductions: 2700 }, // David
+    { salary: 48000, hra: 12000, allowances: 3800, deductions: 1400 }, // Emma
+  ];
+
+  for (let i = 0; i < createdEmployees.length; i++) {
+    const emp = createdEmployees[i];
+    const data = payrollData[i];
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        basicSalary: data.salary,
+        hra: data.hra,
+        allowances: data.allowances,
+        deductions: data.deductions,
+        netSalary: data.salary + data.hra + data.allowances - data.deductions,
+      },
+    });
+  }
+
   console.log("💰 Created payroll records");
 
   // Create attendance records for the past week
   const today = new Date();
+  const attendanceStatuses = ["PRESENT", "PRESENT", "ABSENT", "HALF_DAY", "PRESENT", "LEAVE", "PRESENT"];
+  
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
 
-    // John's attendance
-    await prisma.attendance.create({
-      data: {
-        employeeId: john.id,
-        date: date,
-        status: i === 0 ? "PRESENT" : i === 5 ? "LEAVE" : "PRESENT",
-        checkIn: i !== 5 ? new Date(date.setHours(9, 0, 0)) : null,
-        checkOut: i !== 5 ? new Date(date.setHours(17, 30, 0)) : null,
-      },
-    });
-
-    // Jane's attendance
-    await prisma.attendance.create({
-      data: {
-        employeeId: jane.id,
-        date: date,
-        status: i === 3 ? "HALF_DAY" : "PRESENT",
-        checkIn: new Date(date.setHours(9, 15, 0)),
-        checkOut: i === 3 ? new Date(date.setHours(13, 0, 0)) : new Date(date.setHours(17, 45, 0)),
-      },
-    });
+    for (const emp of allEmployees) {
+      const status = attendanceStatuses[i];
+      
+      await prisma.attendance.create({
+        data: {
+          employeeId: emp.id,
+          date: date,
+          status: status as "PRESENT" | "ABSENT" | "HALF_DAY" | "LEAVE",
+          checkIn: status !== "ABSENT" && status !== "LEAVE" ? new Date(date.setHours(9, Math.random() * 30, 0)) : null,
+          checkOut: status === "PRESENT" ? new Date(date.setHours(17, 30 + Math.random() * 30, 0)) : 
+                    status === "HALF_DAY" ? new Date(date.setHours(13, Math.random() * 60, 0)) : null,
+        },
+      });
+    }
   }
 
   console.log("📅 Created attendance records");
@@ -194,20 +299,59 @@ async function main() {
     },
   });
 
+  // Add leave requests for new employees
+  await prisma.leaveRequest.create({
+    data: {
+      employeeId: createdEmployees[0].id, // Alice
+      type: "PAID",
+      startDate: new Date("2026-01-20"),
+      endDate: new Date("2026-01-22"),
+      days: 3,
+      reason: "Personal work",
+      status: "PENDING",
+    },
+  });
+
+  await prisma.leaveRequest.create({
+    data: {
+      employeeId: createdEmployees[1].id, // Bob
+      type: "UNPAID",
+      startDate: new Date("2026-02-10"),
+      endDate: new Date("2026-02-12"),
+      days: 3,
+      reason: "Travel",
+      status: "APPROVED",
+      approvedBy: admin.id,
+      approvedAt: new Date("2026-01-25"),
+      adminComment: "Approved",
+    },
+  });
+
   console.log("🏖️  Created leave requests");
 
   console.log("\n✅ Database seed completed successfully!");
   console.log("\n📧 Login Credentials:");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("Admin:");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("ADMIN:");
   console.log("  Email: admin@dayflow.com");
   console.log("  Password: admin123");
-  console.log("\nEmployees:");
-  console.log("  Email: john@dayflow.com");
-  console.log("  Password: employee123");
-  console.log("\n  Email: jane@dayflow.com");
-  console.log("  Password: employee123");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+  console.log("\nEMPLOYEES:");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("1️⃣  John Doe (Senior Developer - IT)");
+  console.log("   Email: john@dayflow.com | Password: employee123");
+  console.log("\n2️⃣  Jane Smith (UI/UX Designer - Design)");
+  console.log("   Email: jane@dayflow.com | Password: employee123");
+  console.log("\n3️⃣  Alice Johnson (Product Manager - Product)");
+  console.log("   Email: alice@dayflow.com | Password: employee123");
+  console.log("\n4️⃣  Bob Wilson (Frontend Developer - IT)");
+  console.log("   Email: bob@dayflow.com | Password: employee123");
+  console.log("\n5️⃣  Carol Davis (Data Analyst - Analytics)");
+  console.log("   Email: carol@dayflow.com | Password: employee123");
+  console.log("\n6️⃣  David Miller (HR Manager - Human Resources)");
+  console.log("   Email: david@dayflow.com | Password: employee123");
+  console.log("\n7️⃣  Emma Taylor (Marketing Specialist - Marketing)");
+  console.log("   Email: emma@dayflow.com | Password: employee123");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 
 main()

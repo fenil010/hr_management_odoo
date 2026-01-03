@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,21 +14,18 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Timer
+  Timer,
+  Loader2
 } from "lucide-react";
 
-const monthlyAttendance = [
-  { date: "2026-01-03", day: "Friday", checkIn: "09:15 AM", checkOut: null, status: "present", hours: "4h 30m" },
-  { date: "2026-01-02", day: "Thursday", checkIn: "09:00 AM", checkOut: "06:00 PM", status: "present", hours: "9h 00m" },
-  { date: "2026-01-01", day: "Wednesday", checkIn: null, checkOut: null, status: "holiday", hours: "-" },
-  { date: "2025-12-31", day: "Tuesday", checkIn: "09:30 AM", checkOut: "06:30 PM", status: "present", hours: "9h 00m" },
-  { date: "2025-12-30", day: "Monday", checkIn: "09:00 AM", checkOut: "01:00 PM", status: "half-day", hours: "4h 00m" },
-  { date: "2025-12-29", day: "Sunday", checkIn: null, checkOut: null, status: "weekend", hours: "-" },
-  { date: "2025-12-28", day: "Saturday", checkIn: null, checkOut: null, status: "weekend", hours: "-" },
-  { date: "2025-12-27", day: "Friday", checkIn: "09:00 AM", checkOut: "06:00 PM", status: "present", hours: "9h 00m" },
-  { date: "2025-12-26", day: "Thursday", checkIn: null, checkOut: null, status: "leave", hours: "-" },
-  { date: "2025-12-25", day: "Wednesday", checkIn: null, checkOut: null, status: "holiday", hours: "-" },
-];
+interface AttendanceRecord {
+  id: string;
+  date: string;
+  checkIn: string | null;
+  checkOut: string | null;
+  status: string;
+  hours?: string;
+}
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -51,6 +49,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function EmployeeAttendancePage() {
+  const { data: session } = useSession();
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isCheckedOut, setIsCheckedOut] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
@@ -58,6 +57,9 @@ export default function EmployeeAttendancePage() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>("00:00:00");
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [monthlyAttendance, setMonthlyAttendance] = useState<AttendanceRecord[]>([]);
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
 
   // Initialize and update current time
   useEffect(() => {
@@ -82,18 +84,169 @@ export default function EmployeeAttendancePage() {
     }
   }, [currentTime, checkInTime, isCheckedOut]);
 
-  const handleCheckIn = () => {
-    const now = new Date();
-    setCheckInTime(now);
-    setIsCheckedIn(true);
-    setIsCheckedOut(false);
-    setCheckOutTime(null);
+  // Fetch employee ID
+  const fetchEmployeeId = useCallback(async () => {
+    if (!session?.user?.email) return null;
+
+    try {
+      const res = await fetch(`/api/employees?email=${session.user.email}`);
+      const data = await res.json();
+      if (data.employee) {
+        setEmployeeId(data.employee.id);
+        return data.employee.id;
+      }
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+    }
+    return null;
+  }, [session?.user?.email]);
+
+  // Fetch today's attendance
+  const fetchTodayAttendance = useCallback(async (empId: string) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const res = await fetch(
+        `/api/attendance?employeeId=${empId}&startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
+      );
+      const data = await res.json();
+      
+      if (data.attendanceRecords && data.attendanceRecords.length > 0) {
+        const todayRecord = data.attendanceRecords[0];
+        setIsCheckedIn(!!todayRecord.checkIn);
+        setIsCheckedOut(!!todayRecord.checkOut);
+        setCheckInTime(todayRecord.checkIn ? new Date(todayRecord.checkIn) : null);
+        setCheckOutTime(todayRecord.checkOut ? new Date(todayRecord.checkOut) : null);
+      }
+    } catch (error) {
+      console.error("Error fetching today's attendance:", error);
+    }
+  }, []);
+
+  // Fetch monthly attendance
+  const fetchMonthlyAttendance = useCallback(async (empId: string) => {
+    try {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      const res = await fetch(
+        `/api/attendance?employeeId=${empId}&startDate=${firstDayOfMonth.toISOString()}&endDate=${lastDayOfMonth.toISOString()}`
+      );
+      const data = await res.json();
+      
+      if (data.attendanceRecords) {
+        const formatted = data.attendanceRecords.map((record: any) => {
+          const date = new Date(record.date);
+          const checkIn = record.checkIn ? new Date(record.checkIn) : null;
+          const checkOut = record.checkOut ? new Date(record.checkOut) : null;
+          
+          let hours = "-";
+          if (checkIn && checkOut) {
+            const diff = checkOut.getTime() - checkIn.getTime();
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            hours = `${h}h ${m}m`;
+          }
+
+          return {
+            id: record.id,
+            date: record.date,
+            day: date.toLocaleDateString('en-US', { weekday: 'long' }),
+            checkIn: checkIn ? checkIn.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+            checkOut: checkOut ? checkOut.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+            status: record.status?.toLowerCase().replace('_', '-') || 'not-marked',
+            hours,
+          };
+        });
+        setMonthlyAttendance(formatted);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching monthly attendance:", error);
+      setLoading(false);
+    }
+  }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      const empId = await fetchEmployeeId();
+      if (empId) {
+        await Promise.all([
+          fetchTodayAttendance(empId),
+          fetchMonthlyAttendance(empId),
+        ]);
+      } else {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [fetchEmployeeId, fetchTodayAttendance, fetchMonthlyAttendance]);
+
+  const handleCheckIn = async () => {
+    if (!employeeId) return;
+
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId, type: "checkIn" }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const now = new Date(data.attendance.checkIn);
+        setCheckInTime(now);
+        setIsCheckedIn(true);
+        setIsCheckedOut(false);
+        setCheckOutTime(null);
+        // Refresh monthly attendance
+        if (employeeId) {
+          await fetchMonthlyAttendance(employeeId);
+          await fetchTodayAttendance(employeeId);
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || "Failed to check in");
+      }
+    } catch (error) {
+      console.error("Error checking in:", error);
+      alert("Failed to check in");
+    }
   };
 
-  const handleCheckOut = () => {
-    const now = new Date();
-    setCheckOutTime(now);
-    setIsCheckedOut(true);
+  const handleCheckOut = async () => {
+    if (!employeeId) return;
+
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId, type: "checkOut" }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const now = new Date(data.attendance.checkOut);
+        setCheckOutTime(now);
+        setIsCheckedOut(true);
+        // Refresh monthly attendance
+        if (employeeId) {
+          await fetchMonthlyAttendance(employeeId);
+          await fetchTodayAttendance(employeeId);
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || "Failed to check out");
+      }
+    } catch (error) {
+      console.error("Error checking out:", error);
+      alert("Failed to check out");
+    }
   };
 
   const formatTime = (date: Date | null) => {
@@ -110,6 +263,14 @@ export default function EmployeeAttendancePage() {
   const todayDate = mounted && currentTime 
     ? currentTime.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     : "Loading...";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -253,7 +414,7 @@ export default function EmployeeAttendancePage() {
                     <div className="flex items-center gap-4">
                       <div className="text-center min-w-15">
                         <p className="text-lg font-bold">{new Date(record.date).getDate()}</p>
-                        <p className="text-xs text-muted-foreground">{record.day.slice(0, 3)}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
