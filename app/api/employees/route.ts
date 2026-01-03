@@ -1,0 +1,230 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+
+// GET employees (all or by email)
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get("email");
+    const id = searchParams.get("id");
+
+    // If email is provided, get specific employee
+    if (email) {
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          employee: true,
+        },
+      });
+
+      if (!user?.employee) {
+        return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ employee: user.employee });
+    }
+
+    // If id is provided, get specific employee
+    if (id) {
+      const employee = await prisma.employee.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!employee) {
+        return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({ employee });
+    }
+
+    // Get all employees (admin only)
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+    });
+
+    if (user?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only admins can view all employees" }, { status: 403 });
+    }
+
+    const employees = await prisma.employee.findMany({
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: {
+        fullName: "asc",
+      },
+    });
+
+    return NextResponse.json({ employees });
+  } catch (error) {
+    console.error("Error fetching employees:", error);
+    return NextResponse.json({ error: "Failed to fetch employees" }, { status: 500 });
+  }
+}
+
+// POST new employee
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if user is admin
+    const adminUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+    });
+
+    if (adminUser?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only admins can create employees" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { email, password, fullName, phone, address, designation, department, joiningDate } = body;
+
+    // Create user first
+    const bcrypt = await import("bcryptjs");
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate employee code
+    const employeeCount = await prisma.employee.count();
+    const employeeCode = `EMP${String(employeeCount + 1).padStart(4, "0")}`;
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: "EMPLOYEE",
+        employee: {
+          create: {
+            employeeCode,
+            fullName,
+            phone,
+            address,
+            designation,
+            department,
+            joiningDate: new Date(joiningDate),
+          },
+        },
+      },
+      include: {
+        employee: true,
+      },
+    });
+
+    return NextResponse.json(
+      { message: "Employee created successfully", employee: user.employee },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error creating employee:", error);
+    return NextResponse.json({ error: "Failed to create employee" }, { status: 500 });
+  }
+}
+
+// PUT update employee
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, phone, address, ...otherFields } = body;
+
+    // Get current user
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      include: { employee: true },
+    });
+
+    // Check if user can update (admin or own profile)
+    const isAdmin = currentUser?.role === "ADMIN";
+    const isOwnProfile = currentUser?.employee?.id === id;
+
+    if (!isAdmin && !isOwnProfile) {
+      return NextResponse.json({ error: "Unauthorized to update this profile" }, { status: 403 });
+    }
+
+    // Non-admins can only update phone and address
+    const updateData = isAdmin
+      ? { phone, address, ...otherFields }
+      : { phone, address };
+
+    const employee = await prisma.employee.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ message: "Employee updated successfully", employee });
+  } catch (error) {
+    console.error("Error updating employee:", error);
+    return NextResponse.json({ error: "Failed to update employee" }, { status: 500 });
+  }
+}
+
+// DELETE employee
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if user is admin
+    const adminUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+    });
+
+    if (adminUser?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only admins can delete employees" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Employee ID is required" }, { status: 400 });
+    }
+
+    // Get employee to find user
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+    });
+
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+
+    // Delete employee (user will remain but without employee profile)
+    await prisma.employee.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Employee deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting employee:", error);
+    return NextResponse.json({ error: "Failed to delete employee" }, { status: 500 });
+  }
+}

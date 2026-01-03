@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+//////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  PAID
+  SICK
+  UNPAID
+}
+
+//////////////////////////////////////////////////
+// USER (AUTH + BASIC INFO)
+//////////////////////////////////////////////////
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  password      String
+  role          Role        @default(EMPLOYEE)
+  isActive      Boolean     @default(true)
+
+  employee      Employee?
+  sessions      Session[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+//////////////////////////////////////////////////
+// EMPLOYEE PROFILE
+//////////////////////////////////////////////////
+
+model Employee {
+  id              String     @id @default(uuid())
+  userId          String     @unique
+  employeeCode    String     @unique
+  fullName        String
+  phone           String?
+  address         String?
+  designation     String
+  department      String
+  joiningDate     DateTime
+  profileImage    String?
+
+  user            User       @relation(fields: [userId], references: [id])
+  attendance      Attendance[]
+  leaves          LeaveRequest[]
+  payroll         Payroll?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+//////////////////////////////////////////////////
+// ATTENDANCE
+//////////////////////////////////////////////////
+
+model Attendance {
+  id          String             @id @default(uuid())
+  employeeId  String
+  date        DateTime
+  status      AttendanceStatus
+  checkIn     DateTime?
+  checkOut    DateTime?
+
+  employee    Employee           @relation(fields: [employeeId], references: [id])
+
+  createdAt   DateTime           @default(now())
+
+  @@unique([employeeId, date])
+}
+
+//////////////////////////////////////////////////
+// LEAVE MANAGEMENT
+//////////////////////////////////////////////////
+
+model LeaveRequest {
+  id            String       @id @default(uuid())
+  employeeId    String
+  type          LeaveType
+  startDate     DateTime
+  endDate       DateTime
+  days          Int
+  reason        String?
+  status        LeaveStatus  @default(PENDING)
+
+  approvedBy    String?
+  approvedAt    DateTime?
+  adminComment  String?
+
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+//////////////////////////////////////////////////
+// PAYROLL
+//////////////////////////////////////////////////
+
+model Payroll {
+  id            String     @id @default(uuid())
+  employeeId    String     @unique
+
+  basicSalary   Float
+  hra           Float
+  allowances    Float
+  deductions    Float
+  netSalary     Float
+
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+//////////////////////////////////////////////////
+// AUTH SESSIONS (NextAuth compatible)
+//////////////////////////////////////////////////
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  expiresAt    DateTime
+
+  user         User     @relation(fields: [userId], references: [id])
+}
