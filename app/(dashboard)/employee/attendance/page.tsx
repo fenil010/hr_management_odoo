@@ -414,7 +414,7 @@ export default function EmployeeAttendancePage() {
                     <div className="flex items-center gap-4">
                       <div className="text-center min-w-15">
                         <p className="text-lg font-bold">{new Date(record.date).getDate()}</p>
-                        <p className="text-xs text-muted-foreground">{record.day.slice(0, 3)}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(record.date).toLocaleDateString('en-US', { weekday: 'short' })}</p>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
