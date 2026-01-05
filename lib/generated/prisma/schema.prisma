@@ -43,11 +43,22 @@ enum LeaveType {
 //////////////////////////////////////////////////
 
 model User {
+<<<<<<< HEAD
   id       String  @id @default(uuid())
   email    String  @unique
   password String
   role     Role    @default(EMPLOYEE)
   isActive Boolean @default(true)
+=======
+  id                      String    @id @default(uuid())
+  email                   String    @unique
+  password                String
+  role                    Role      @default(EMPLOYEE)
+  isActive                Boolean   @default(true)
+  emailVerified           Boolean   @default(false)
+  verificationToken       String?
+  verificationTokenExpiry DateTime?
+>>>>>>> 6141adc96aacbdaf55f8dc5d0084721e914a5c59
 
   employee Employee?
   sessions Session[]
