@@ -16,7 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CommandMenu } from "@/components/command-menu";
 import {
   Bell,
   Search,
@@ -37,6 +36,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import dynamic from "next/dynamic";
+
+// Dynamically import CommandMenu to prevent hydration mismatch
+const CommandMenu = dynamic(() => import("@/components/command-menu").then(mod => ({ default: mod.CommandMenu })), {
+  ssr: false,
+});
 
 // Mock notifications - In production, fetch from API
 const notifications = [

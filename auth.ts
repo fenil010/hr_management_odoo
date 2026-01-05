@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Don't use adapter with Credentials provider - it's incompatible
+  session: {
+    strategy: "jwt", // Use JWT sessions for Credentials provider
+  },
   providers: [
     Credentials({
       credentials: {
@@ -27,10 +31,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             include: { employee: true },
           }).catch((err: unknown) => {
             console.error("💥 Database error finding user:", err);
-            return null;
+            console.error("💥 Full error details:", JSON.stringify(err, null, 2));
+            throw new Error("Database connection failed. Please try again.");
           });
 
           console.log("👤 User found:", user ? "Yes" : "No");
+          if (user) {
+            console.log("👤 User details:", { email: user.email, role: user.role, isActive: user.isActive, emailVerified: user.emailVerified });
+          }
 
           if (!user || !user.isActive) {
             console.log("❌ User not found or inactive");

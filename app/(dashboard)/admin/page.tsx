@@ -62,32 +62,34 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch all dashboard data
+  // ✅ FIX: Fetch all dashboard data in PARALLEL (not sequential)
   const fetchDashboardData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // Fetch employees
-      const employeesRes = await fetch("/api/employees");
-      const employeesData = await employeesRes.json();
-      const totalEmployees = employeesData.employees?.length || 0;
-
-      // Fetch today's attendance
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const attendanceRes = await fetch(
-        `/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
-      );
-      const attendanceData = await attendanceRes.json();
+
+      // ✅ PARALLEL FETCHING: All 3 requests execute simultaneously
+      const [employeesData, attendanceData, leaveData] = await Promise.all([
+        fetch("/api/employees?includePayroll=true").then(res => res.json()),
+        fetch(`/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`).then(res => res.json()),
+        fetch("/api/leave").then(res => res.json()),
+      ]);
+
+      const employees = employeesData.employees || [];
+      const totalEmployees = employees.length;
+
+      // Calculate total monthly payroll from the included data
+      const monthlyPayroll = employees.reduce((sum: number, emp: any) => {
+        return sum + (emp.payroll?.netSalary || 0);
+      }, 0);
+
       const presentToday = attendanceData.attendanceRecords?.filter((a: any) => 
         a.status === "PRESENT" || a.status === "HALF_DAY"
       ).length || 0;
 
-      // Fetch leave requests
-      const leaveRes = await fetch("/api/leave");
-      const leaveData = await leaveRes.json();
       const allLeaves = leaveData.leaveRequests || [];
       const pendingLeaves = allLeaves.filter((lr: any) => lr.status === "PENDING").length;
       
@@ -95,22 +97,6 @@ export default function AdminPage() {
       const recentLeaves = allLeaves
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-
-      // Fetch payroll - calculate total monthly payroll
-      let monthlyPayroll = 0;
-      if (employeesData.employees) {
-        for (const emp of employeesData.employees) {
-          try {
-            const payrollRes = await fetch(`/api/payroll?employeeId=${emp.id}`);
-            const payrollData = await payrollRes.json();
-            if (payrollData.payroll) {
-              monthlyPayroll += payrollData.payroll.netSalary || 0;
-            }
-          } catch (error) {
-            console.error(`Error fetching payroll for ${emp.id}:`, error);
-          }
-        }
-      }
 
       setStats({
         totalEmployees,

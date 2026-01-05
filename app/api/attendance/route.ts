@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         date: "desc",
       },
+      take: 100, // Limit results for better performance
     });
 
     return NextResponse.json({ attendanceRecords });

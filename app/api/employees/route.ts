@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { cache } from "@/lib/utils";
 
 // GET employees (all or by email)
 export async function GET(request: NextRequest) {
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
     const id = searchParams.get("id");
+    const includePayroll = searchParams.get("includePayroll") === "true";
 
     // If email is provided, get specific employee
     if (email) {
@@ -60,20 +62,45 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Only admins can view all employees" }, { status: 403 });
     }
 
-    const employees = await prisma.employee.findMany({
-      include: {
-        user: {
-          select: {
-            email: true,
-            role: true,
-            isActive: true,
+    // Get all employees (admin only) - with caching and optional payroll data
+    const cacheKey = includePayroll 
+      ? `employees_list_payroll_${session.user.email}`
+      : `employees_list_${session.user.email}`;
+    let employees = cache.get(cacheKey);
+
+    if (!employees) {
+      employees = await prisma.employee.findMany({
+        include: {
+          user: {
+            select: {
+              email: true,
+              role: true,
+              isActive: true,
+            },
           },
+          // Include payroll data in a single query to avoid N+1 problem
+          ...(includePayroll && {
+            payroll: {
+              select: {
+                id: true,
+                basicSalary: true,
+                hra: true,
+                allowances: true,
+                deductions: true,
+                netSalary: true,
+              },
+            },
+          }),
         },
-      },
-      orderBy: {
-        fullName: "asc",
-      },
-    });
+        orderBy: {
+          fullName: "asc",
+        },
+        take: 100, // Limit results to prevent slow loading
+      });
+
+      // Cache for 5 minutes
+      cache.set(cacheKey, employees, 300000);
+    }
 
     return NextResponse.json({ employees });
   } catch (error) {

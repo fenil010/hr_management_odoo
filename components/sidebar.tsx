@@ -61,28 +61,27 @@ export default function Sidebar() {
     },
   ];
 
-  // Fetch pending leaves count
+  // ✅ FIX: Only fetch on manual navigation to leave-requests page
+  // Remove automatic polling - badges update when user navigates
   useEffect(() => {
     setMounted(true);
-    const fetchPendingLeaves = async () => {
-      if (!isAdmin) return;
-      
-      try {
-        const res = await fetch("/api/leave?status=PENDING");
-        const data = await res.json();
-        if (data.leaveRequests) {
-          setPendingLeavesCount(data.leaveRequests.length);
+    
+    // Only fetch if user is viewing leave-requests page
+    if (pathname === "/admin/leave-requests") {
+      const fetchPendingLeaves = async () => {
+        try {
+          const res = await fetch("/api/leave?status=PENDING");
+          const data = await res.json();
+          if (data.leaveRequests) {
+            setPendingLeavesCount(data.leaveRequests.length);
+          }
+        } catch (error) {
+          console.error("Error fetching pending leaves:", error);
         }
-      } catch (error) {
-        console.error("Error fetching pending leaves:", error);
-      }
-    };
-
-    fetchPendingLeaves();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPendingLeaves, 30000);
-    return () => clearInterval(interval);
-  }, [isAdmin]);
+      };
+      fetchPendingLeaves();
+    }
+  }, [pathname]);
 
   const employeeGroups: NavGroup[] = [
     {

@@ -1,21 +1,12 @@
-import { PrismaClient } from "../lib/generated/prisma";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { config } from "dotenv";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
 import path from "path";
 
 // Load environment variables from parent directory
 config({ path: path.join(__dirname, "../.env") });
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Starting database seed...");

@@ -2,7 +2,9 @@ require('dotenv').config();
 
 // Import email functions (using dynamic import for ES modules)
 async function runTest() {
-  const { sendOTPEmail, testEmailConfig } = await import('./lib/email.js');
+  const imported = await import('./lib/email.ts');
+  const emailModule = imported.default || imported;
+  const { sendOTPEmail, testEmailConfig } = emailModule;
 
   async function test() {
     console.log('\n🧪 Testing Email Configuration...\n');
@@ -25,7 +27,7 @@ async function runTest() {
     
     // Then test sending an email
     console.log('Step 2: Testing email sending...');
-    const testEmail = process.env.TEST_EMAIL || 'your-email@gmail.com';
+    const testEmail = process.env.TEST_EMAIL || 'trgarala@gmail.com';
     const testOTP = '123456';
     const testName = 'Test User';
     
