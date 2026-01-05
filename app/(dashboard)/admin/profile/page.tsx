@@ -71,7 +71,7 @@ export default function AdminProfilePage() {
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <Avatar className="h-32 w-32 border-4 border-blue-100">
-                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white text-3xl font-medium">
+                <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-500 text-white text-3xl font-medium">
                   {getInitials(employee?.fullName || session?.user?.name || "User")}
                 </AvatarFallback>
               </Avatar>
