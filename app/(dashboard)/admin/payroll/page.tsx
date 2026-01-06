@@ -501,8 +501,97 @@ export default function AdminPayrollPage() {
             </Select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-lg border">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No employees found matching your filters
+              </div>
+            ) : (
+              <>
+                {filteredData.map((employee) => (
+                  <Card key={employee.id} className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                            {employee.name.split(" ").map(n => n[0]).join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-sm">{employee.name}</p>
+                          <p className="text-xs text-muted-foreground">{employee.email}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleEditEmployee(employee)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Department:</span>
+                        <Badge variant="outline" className="text-xs">{employee.department}</Badge>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Base Salary:</span>
+                        <span className="font-medium">{formatCurrency(employee.baseSalary)}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">HRA (25%):</span>
+                        <span className="font-medium">{formatCurrency(Math.round(employee.baseSalary * 0.25))}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Allowances:</span>
+                        <span className="text-green-600 font-medium">+{formatCurrency(employee.bonus)}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Deductions:</span>
+                        <span className="text-red-600 font-medium">-{formatCurrency(employee.deductions)}</span>
+                      </div>
+                      <div className="flex justify-between py-2 pt-3 border-t">
+                        <span className="font-semibold">Net Salary:</span>
+                        <span className="font-bold text-base text-primary">{formatCurrency(employee.netSalary)}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                {/* Mobile Total Card */}
+                <Card className="p-4 bg-muted/50">
+                  <p className="font-semibold text-sm mb-3">Total Summary ({filteredData.length} employees)</p>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span>Base Salary:</span>
+                      <span className="font-medium">{formatCurrency(filteredData.reduce((sum, e) => sum + e.baseSalary, 0))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>HRA:</span>
+                      <span className="font-medium">{formatCurrency(filteredData.reduce((sum, e) => sum + Math.round(e.baseSalary * 0.25), 0))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Allowances:</span>
+                      <span className="text-green-600 font-medium">+{formatCurrency(filteredData.reduce((sum, e) => sum + e.bonus, 0))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Deductions:</span>
+                      <span className="text-red-600 font-medium">-{formatCurrency(filteredData.reduce((sum, e) => sum + e.deductions, 0))}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t">
+                      <span className="font-bold">Net Total:</span>
+                      <span className="font-bold text-base">{formatCurrency(filteredData.reduce((sum, e) => sum + e.netSalary, 0))}</span>
+                    </div>
+                  </div>
+                </Card>
+              </>
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-lg border">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>

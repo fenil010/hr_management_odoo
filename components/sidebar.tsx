@@ -36,7 +36,11 @@ interface NavGroup {
   items: NavItem[];
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps = {}) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -110,6 +114,7 @@ export default function Sidebar() {
     const content = (
       <Link
         href={item.href}
+        onClick={onNavigate}
         className={cn(
           "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
           isActive

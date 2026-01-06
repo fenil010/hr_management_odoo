@@ -17,6 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Bell,
   Search,
   Settings,
@@ -33,9 +39,11 @@ import {
   Clock,
   DollarSign,
   AlertCircle,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Sidebar from "@/components/sidebar";
 import dynamic from "next/dynamic";
 
 // Dynamically import CommandMenu to prevent hydration mismatch
@@ -94,6 +102,7 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = pathname?.startsWith("/admin");
 
   // Prevent hydration mismatch
@@ -133,13 +142,28 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           {/* Left Section - Logo & Branding */}
-          <div className="flex items-center gap-4">
-            <Link href={isAdmin ? "/admin" : "/employee"} className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25">
-                <Sparkles className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden h-9 w-9 rounded-xl">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0">
+                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                <div className="h-full">
+                  <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+            
+            <Link href={isAdmin ? "/admin" : "/employee"} className="flex items-center gap-2 sm:gap-3">
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
-              <div className="hidden md:block">
-                <h1 className="text-lg font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <div className="hidden sm:block">
+                <h1 className="text-base sm:text-lg font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   DayFlow
                 </h1>
                 <p className="text-[10px] text-muted-foreground -mt-1">HR Management</p>
@@ -164,7 +188,7 @@ export default function Navbar() {
           </button>
 
           {/* Right Section - Actions & Profile */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Mobile Search Button */}
             <Button
               variant="ghost"

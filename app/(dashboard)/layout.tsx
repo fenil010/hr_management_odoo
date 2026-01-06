@@ -10,9 +10,12 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="flex h-[calc(100vh-64px)]">
-        <Sidebar />
+        {/* Desktop Sidebar - hidden on mobile */}
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
         <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-6 lg:p-8">
+          <div className="container mx-auto p-4 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>

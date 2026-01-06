@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Mail, Phone, MapPin, Calendar, Shield, Edit2, Save, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function AdminProfilePage() {
   const { data: session } = useSession();
@@ -59,62 +60,62 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <p className="text-muted-foreground">Manage your personal information and settings</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">My Profile</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">Manage your personal information and settings</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Profile Card */}
-        <Card className="md:col-span-1">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <Avatar className="h-32 w-32 border-4 border-blue-100">
-                <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-500 text-white text-3xl font-medium">
+        <Card className="lg:col-span-1">
+          <CardHeader className="text-center p-4 sm:p-6">
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-blue-100">
+                <AvatarFallback className="bg-linear-to-br from-blue-500 to-indigo-500 text-white text-2xl sm:text-3xl font-medium">
                   {getInitials(employee?.fullName || session?.user?.name || "User")}
                 </AvatarFallback>
               </Avatar>
             </div>
-            <CardTitle className="text-2xl">{employee?.fullName || session?.user?.name}</CardTitle>
-            <CardDescription>{session?.user?.email}</CardDescription>
-            <div className="flex justify-center gap-2 mt-4">
-              <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+            <CardTitle className="text-xl sm:text-2xl">{employee?.fullName || session?.user?.name}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{session?.user?.email}</CardDescription>
+            <div className="flex flex-wrap justify-center gap-2 mt-3 sm:mt-4">
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
                 <Shield className="w-3 h-3 mr-1" />
                 ADMIN
               </Badge>
-              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
                 Active
               </Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{session?.user?.email}</span>
+          <CardContent className="p-4 sm:p-6">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center gap-3 text-xs sm:text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground break-all">{session?.user?.email}</span>
               </div>
               {employee?.phone && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-3 text-xs sm:text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground">{employee.phone}</span>
                 </div>
               )}
               {employee?.designation && (
-                <div className="flex items-center gap-3 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-3 text-xs sm:text-sm">
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground">{employee.designation}</span>
                 </div>
               )}
               {employee?.department && (
-                <div className="flex items-center gap-3 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-3 text-xs sm:text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground">{employee.department}</span>
                 </div>
               )}
               {employee?.joiningDate && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-center gap-3 text-xs sm:text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground">
                     Joined {new Date(employee.joiningDate).toLocaleDateString()}
                   </span>
@@ -125,129 +126,129 @@ export default function AdminProfilePage() {
         </Card>
 
         {/* Details Card */}
-        <Card className="md:col-span-2">
+        <Card className="lg:col-span-2">
           <Tabs defaultValue="personal" className="w-full">
-            <CardHeader>
+            <CardHeader className="p-4 sm:p-6">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="personal">Personal Info</TabsTrigger>
-                <TabsTrigger value="security">Security</TabsTrigger>
+                <TabsTrigger value="personal" className="text-xs sm:text-sm">Personal Info</TabsTrigger>
+                <TabsTrigger value="security" className="text-xs sm:text-sm">Security</TabsTrigger>
               </TabsList>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <TabsContent value="personal" className="space-y-4">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
                   <div>
-                    <h3 className="text-lg font-semibold">Personal Information</h3>
-                    <p className="text-sm text-muted-foreground">Update your personal details</p>
+                    <h3 className="text-base sm:text-lg font-semibold">Personal Information</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Update your personal details</p>
                   </div>
                   {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
+                    <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="w-full sm:w-auto">
                       <Edit2 className="w-4 h-4 mr-2" />
                       Edit
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
-                        <X className="w-4 h-4 mr-2" />
-                        Cancel
+                      <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" className="flex-1 sm:flex-none">
+                        <X className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Cancel</span>
                       </Button>
-                      <Button size="sm">
-                        <Save className="w-4 h-4 mr-2" />
-                        Save
+                      <Button size="sm" className="flex-1 sm:flex-none">
+                        <Save className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Save</span>
                       </Button>
                     </div>
                   )}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
+                    <Label htmlFor="fullName" className="text-xs sm:text-sm">Full Name</Label>
                     <Input
                       id="fullName"
                       value={employee?.fullName || ""}
                       disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
+                      className={cn(!isEditing && "bg-muted", "text-sm")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="text-xs sm:text-sm">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       value={session?.user?.email || ""}
                       disabled
-                      className="bg-muted"
+                      className="bg-muted text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone" className="text-xs sm:text-sm">Phone</Label>
                     <Input
                       id="phone"
                       value={employee?.phone || ""}
                       disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
+                      className={cn(!isEditing && "bg-muted", "text-sm")}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="employeeCode">Employee Code</Label>
+                    <Label htmlFor="employeeCode" className="text-xs sm:text-sm">Employee Code</Label>
                     <Input
                       id="employeeCode"
                       value={employee?.employeeCode || ""}
                       disabled
-                      className="bg-muted"
+                      className="bg-muted text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="designation">Designation</Label>
+                    <Label htmlFor="designation" className="text-xs sm:text-sm">Designation</Label>
                     <Input
                       id="designation"
                       value={employee?.designation || ""}
                       disabled
-                      className="bg-muted"
+                      className="bg-muted text-sm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department" className="text-xs sm:text-sm">Department</Label>
                     <Input
                       id="department"
                       value={employee?.department || ""}
                       disabled
-                      className="bg-muted"
+                      className="bg-muted text-sm"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="address">Address</Label>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="address" className="text-xs sm:text-sm">Address</Label>
                     <Input
                       id="address"
                       value={employee?.address || ""}
                       disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
+                      className={cn(!isEditing && "bg-muted", "text-sm")}
                     />
                   </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="security" className="space-y-4">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold">Security Settings</h3>
-                  <p className="text-sm text-muted-foreground">Manage your password and security preferences</p>
+                <div className="mb-4 sm:mb-6">
+                  <h3 className="text-base sm:text-lg font-semibold">Security Settings</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Manage your password and security preferences</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input id="currentPassword" type="password" placeholder="Enter current password" />
+                    <Label htmlFor="currentPassword" className="text-xs sm:text-sm">Current Password</Label>
+                    <Input id="currentPassword" type="password" placeholder="Enter current password" className="text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input id="newPassword" type="password" placeholder="Enter new password" />
+                    <Label htmlFor="newPassword" className="text-xs sm:text-sm">New Password</Label>
+                    <Input id="newPassword" type="password" placeholder="Enter new password" className="text-sm" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input id="confirmPassword" type="password" placeholder="Confirm new password" />
+                    <Label htmlFor="confirmPassword" className="text-xs sm:text-sm">Confirm New Password</Label>
+                    <Input id="confirmPassword" type="password" placeholder="Confirm new password" className="text-sm" />
                   </div>
-                  <Button className="w-full">
+                  <Button className="w-full text-sm">
                     Update Password
                   </Button>
                 </div>
