@@ -1,20 +1,14 @@
-import { PrismaClient } from "./generated/prisma";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient | undefined;
-  pool: Pool | undefined;
 };
 
 function createPrismaClient() {
-  if (!globalForPrisma.pool) {
-    globalForPrisma.pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  }
-  const adapter = new PrismaPg(globalForPrisma.pool);
   return new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    // ✅ FIX: Only log errors in development to improve performance
+    // Query logging adds 50-100ms per query - enable only for debugging
+    log: process.env.NODE_ENV === "development" ? ["error"] : ["error"],
   });
 }
 

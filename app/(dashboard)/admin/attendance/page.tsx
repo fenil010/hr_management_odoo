@@ -294,8 +294,60 @@ export default function AdminAttendancePage() {
             </Select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-lg border">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No employees found matching your filters
+              </div>
+            ) : (
+              filteredData.map((employee) => (
+                <Card key={employee.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                          {employee.name.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm">{employee.name}</p>
+                        <p className="text-xs text-muted-foreground">{employee.email}</p>
+                      </div>
+                    </div>
+                    {getStatusBadge(employee.status)}
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between py-1">
+                      <span className="text-muted-foreground">Department:</span>
+                      <Badge variant="outline" className="text-xs">{employee.department}</Badge>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-muted-foreground">Check In:</span>
+                      <span className={employee.checkIn ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                        {employee.checkIn || "-"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-muted-foreground">Check Out:</span>
+                      <span className={employee.checkOut ? "text-red-600 font-medium" : "text-muted-foreground"}>
+                        {employee.checkOut || (employee.checkIn ? "Working" : "-")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1 pt-2 border-t">
+                      <span className="text-muted-foreground font-medium">Work Hours:</span>
+                      <span className={employee.workHours === "Working..." ? "text-green-600 font-medium animate-pulse" : "font-medium"}>
+                        {employee.workHours}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block rounded-lg border">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>

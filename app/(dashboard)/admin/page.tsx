@@ -62,32 +62,34 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch all dashboard data
+  // ✅ FIX: Fetch all dashboard data in PARALLEL (not sequential)
   const fetchDashboardData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // Fetch employees
-      const employeesRes = await fetch("/api/employees");
-      const employeesData = await employeesRes.json();
-      const totalEmployees = employeesData.employees?.length || 0;
-
-      // Fetch today's attendance
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const attendanceRes = await fetch(
-        `/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
-      );
-      const attendanceData = await attendanceRes.json();
+
+      // ✅ PARALLEL FETCHING: All 3 requests execute simultaneously
+      const [employeesData, attendanceData, leaveData] = await Promise.all([
+        fetch("/api/employees?includePayroll=true").then(res => res.json()),
+        fetch(`/api/attendance?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`).then(res => res.json()),
+        fetch("/api/leave").then(res => res.json()),
+      ]);
+
+      const employees = employeesData.employees || [];
+      const totalEmployees = employees.length;
+
+      // Calculate total monthly payroll from the included data
+      const monthlyPayroll = employees.reduce((sum: number, emp: any) => {
+        return sum + (emp.payroll?.netSalary || 0);
+      }, 0);
+
       const presentToday = attendanceData.attendanceRecords?.filter((a: any) => 
         a.status === "PRESENT" || a.status === "HALF_DAY"
       ).length || 0;
 
-      // Fetch leave requests
-      const leaveRes = await fetch("/api/leave");
-      const leaveData = await leaveRes.json();
       const allLeaves = leaveData.leaveRequests || [];
       const pendingLeaves = allLeaves.filter((lr: any) => lr.status === "PENDING").length;
       
@@ -95,22 +97,6 @@ export default function AdminPage() {
       const recentLeaves = allLeaves
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-
-      // Fetch payroll - calculate total monthly payroll
-      let monthlyPayroll = 0;
-      if (employeesData.employees) {
-        for (const emp of employeesData.employees) {
-          try {
-            const payrollRes = await fetch(`/api/payroll?employeeId=${emp.id}`);
-            const payrollData = await payrollRes.json();
-            if (payrollData.payroll) {
-              monthlyPayroll += payrollData.payroll.netSalary || 0;
-            }
-          } catch (error) {
-            console.error(`Error fetching payroll for ${emp.id}:`, error);
-          }
-        }
-      }
 
       setStats({
         totalEmployees,
@@ -192,50 +178,60 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Welcome back! Here&apos;s an overview of your organization.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {mounted && currentTime && (
-            <Badge variant="outline" className="text-sm font-mono px-3 py-1">
-              <Clock className="mr-2 h-3 w-3 animate-pulse" />
-              {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-            </Badge>
-          )}
-          {mounted && currentTime && (
-            <Badge variant="outline" className="text-sm">
-              <Calendar className="mr-1 h-3 w-3" />
-              {currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </Badge>
+            <>
+              <Badge variant="outline" className="text-xs sm:text-sm font-mono px-2 sm:px-3 py-1">
+                <Clock className="mr-1 sm:mr-2 h-3 w-3 animate-pulse" />
+                <span className="hidden sm:inline">
+                  {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+                <span className="sm:hidden">
+                  {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </span>
+              </Badge>
+              <Badge variant="outline" className="text-xs sm:text-sm">
+                <Calendar className="mr-1 h-3 w-3" />
+                <span className="hidden sm:inline">
+                  {currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+                <span className="sm:hidden">
+                  {currentTime.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </span>
+              </Badge>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat, index) => (
           <Card key={index} className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <div className={`${stat.lightColor} p-2 rounded-lg`}>
-                <stat.icon className={`h-4 w-4 ${stat.textColor}`} />
+              <div className={`${stat.lightColor} p-1.5 sm:p-2 rounded-lg`}>
+                <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.textColor}`} />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stat.value}</div>
-              <div className="flex items-center text-xs mt-1">
+            <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold">{stat.value}</div>
+              <div className="flex items-center text-[10px] sm:text-xs mt-1">
                 {stat.trend === "up" ? (
                   <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
                 ) : (
@@ -244,7 +240,7 @@ export default function AdminPage() {
                 <span className={stat.trend === "up" ? "text-green-500" : "text-red-500"}>
                   {stat.change}
                 </span>
-                <span className="text-muted-foreground ml-1">from last month</span>
+                <span className="text-muted-foreground ml-1 hidden sm:inline">from last month</span>
               </div>
             </CardContent>
           </Card>
@@ -253,30 +249,30 @@ export default function AdminPage() {
 
       {/* Charts Section */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
+        <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="attendance" className="text-xs sm:text-sm">Attendance</TabsTrigger>
+          <TabsTrigger value="payroll" className="text-xs sm:text-sm">Payroll</TabsTrigger>
+          <TabsTrigger value="departments" className="text-xs sm:text-sm">Departments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4">
+          <div className="grid gap-4 lg:grid-cols-7">
+            <Card className="lg:col-span-4">
               <CardHeader>
-                <CardTitle>Attendance Trends</CardTitle>
-                <CardDescription>Monthly attendance and leave patterns</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Attendance Trends</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Monthly attendance and leave patterns</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 <AttendanceChart />
               </CardContent>
             </Card>
-            <Card className="col-span-3">
+            <Card className="lg:col-span-3">
               <CardHeader>
-                <CardTitle>Today&apos;s Attendance</CardTitle>
-                <CardDescription>Real-time attendance breakdown</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Today&apos;s Attendance</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Real-time attendance breakdown</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 <AttendancePieChart />
               </CardContent>
             </Card>
@@ -284,22 +280,22 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Yearly Attendance Overview</CardTitle>
-                <CardDescription>Attendance vs Leaves percentage</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Yearly Attendance Overview</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Attendance vs Leaves percentage</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 <AttendanceChart />
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Attendance Distribution</CardTitle>
-                <CardDescription>Current workforce status</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Attendance Distribution</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Current workforce status</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 <AttendancePieChart />
               </CardContent>
             </Card>
@@ -309,10 +305,10 @@ export default function AdminPage() {
         <TabsContent value="payroll" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Payroll & Compensation</CardTitle>
-              <CardDescription>Monthly payroll trends with bonuses</CardDescription>
+              <CardTitle className="text-base sm:text-lg">Payroll & Compensation</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Monthly payroll trends with bonuses</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 sm:p-6">
               <PayrollChart />
             </CardContent>
           </Card>
@@ -321,10 +317,10 @@ export default function AdminPage() {
         <TabsContent value="departments" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Department Distribution</CardTitle>
-              <CardDescription>Employee count by department</CardDescription>
+              <CardTitle className="text-base sm:text-lg">Department Distribution</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Employee count by department</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 sm:p-6">
               <DepartmentChart />
             </CardContent>
           </Card>
@@ -332,16 +328,16 @@ export default function AdminPage() {
       </Tabs>
 
       {/* Bottom Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {/* Leave Requests */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <CardTitle>Recent Leave Requests</CardTitle>
-                <CardDescription>Latest employee leave applications</CardDescription>
+                <CardTitle className="text-base sm:text-lg">Recent Leave Requests</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Latest employee leave applications</CardDescription>
               </div>
-              <Badge variant="secondary">{recentLeaveRequests.filter(r => r.status === "pending").length} Pending</Badge>
+              <Badge variant="secondary" className="w-fit text-xs">{recentLeaveRequests.filter(r => r.status === "pending").length} Pending</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -355,24 +351,24 @@ export default function AdminPage() {
                 <p className="text-sm">No leave requests</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {recentLeaveRequests.map((request) => (
-                  <div key={request.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div key={request.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
+                      <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
                         <AvatarFallback className="text-xs">
                           {request.employee.fullName.split(" ").map(n => n[0]).join("").toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium text-sm">{request.employee.fullName}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="font-medium text-xs sm:text-sm">{request.employee.fullName}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
                           {request.type} • {request.days} day{request.days > 1 ? "s" : ""}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 ml-11 sm:ml-0">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground">
                         {new Date(request.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                       <Badge
@@ -383,7 +379,7 @@ export default function AdminPage() {
                             ? "destructive"
                             : "secondary"
                         }
-                        className="capitalize"
+                        className="capitalize text-[10px] sm:text-xs"
                       >
                         {request.status === "APPROVED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
                         {request.status.toLowerCase()}
@@ -399,30 +395,30 @@ export default function AdminPage() {
         {/* Quick Stats Summary */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Manage your organization</CardDescription>
+            <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Manage your organization</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" asChild>
+            <div className="space-y-2 sm:space-y-3">
+              <Button variant="outline" className="w-full justify-start text-xs sm:text-sm" asChild>
                 <a href="/admin/employees">
                   <Users className="h-4 w-4 mr-2" />
                   View All Employees
                 </a>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
+              <Button variant="outline" className="w-full justify-start text-xs sm:text-sm" asChild>
                 <a href="/admin/attendance">
                   <UserCheck className="h-4 w-4 mr-2" />
                   Manage Attendance
                 </a>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
+              <Button variant="outline" className="w-full justify-start text-xs sm:text-sm" asChild>
                 <a href="/admin/leave-requests">
                   <Calendar className="h-4 w-4 mr-2" />
                   Review Leave Requests
                 </a>
               </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
+              <Button variant="outline" className="w-full justify-start text-xs sm:text-sm" asChild>
                 <a href="/admin/payroll">
                   <IndianRupee className="h-4 w-4 mr-2" />
                   Process Payroll

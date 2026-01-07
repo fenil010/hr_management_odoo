@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { cache } from "@/lib/utils";
 
 // GET leave requests
 export async function GET(request: NextRequest) {
@@ -25,23 +26,33 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    const leaveRequests = await prisma.leaveRequest.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            fullName: true,
-            employeeCode: true,
-            department: true,
-            designation: true,
+    // Build cache key based on query parameters
+    const cacheKey = `leave_requests_${employeeId || 'all'}_${status || 'all'}_${session.user.email}`;
+    let leaveRequests = cache.get(cacheKey);
+
+    if (!leaveRequests) {
+      leaveRequests = await prisma.leaveRequest.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              fullName: true,
+              employeeCode: true,
+              department: true,
+              designation: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 50, // Limit results to improve performance
+      });
+
+      // Cache for 2 minutes
+      cache.set(cacheKey, leaveRequests, 120000);
+    }
 
     return NextResponse.json({ leaveRequests });
   } catch (error) {
@@ -107,6 +118,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Clear cache for leave requests
+    cache.delete(`leave_requests_${employeeId}_all_${session.user.email}`);
+    cache.delete(`leave_requests_all_all_${session.user.email}`);
+    cache.delete(`leave_requests_all_PENDING_${session.user.email}`);
+
     return NextResponse.json(
       { message: "Leave request submitted successfully", leaveRequest },
       { status: 201 }
@@ -164,6 +180,12 @@ export async function PUT(request: NextRequest) {
         },
       },
     });
+
+    // Clear cache for leave requests
+    cache.delete(`leave_requests_${leaveRequest.employeeId}_all_${session.user.email}`);
+    cache.delete(`leave_requests_all_all_${session.user.email}`);
+    cache.delete(`leave_requests_all_${leaveRequest.status}_${session.user.email}`);
+    cache.delete(`leave_requests_all_PENDING_${session.user.email}`);
 
     return NextResponse.json({
       message: `Leave request ${status.toLowerCase()} successfully`,

@@ -3,11 +3,11 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 //////////////////////////////////////////////////
@@ -82,6 +82,10 @@ model Employee {
 
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([department])
+  @@index([designation])
 }
 
 //////////////////////////////////////////////////
@@ -101,6 +105,9 @@ model Attendance {
   createdAt   DateTime           @default(now())
 
   @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
 }
 
 //////////////////////////////////////////////////
@@ -125,6 +132,10 @@ model LeaveRequest {
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 //////////////////////////////////////////////////
@@ -141,6 +152,8 @@ model Payroll {
   deductions    Float
   netSalary     Float
 
+
+  @@index([employeeId])
   employee      Employee  @relation(fields: [employeeId], references: [id])
 
   createdAt     DateTime  @default(now())
@@ -152,9 +165,9 @@ model Payroll {
 //////////////////////////////////////////////////
 
 model Session {
-  id           String   @id @default(uuid())
+  sessionToken String   @id
   userId       String
-  expiresAt    DateTime
+  expires      DateTime
 
   user         User     @relation(fields: [userId], references: [id])
 }
