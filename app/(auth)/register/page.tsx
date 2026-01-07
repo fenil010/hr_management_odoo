@@ -50,13 +50,13 @@ export default function RegisterPage() {
   const passwordStrength = password.length >= 8 ? "strong" : password.length >= 4 ? "medium" : "weak";
 
   return (
-    <div className="bg-card text-card-foreground p-8 rounded-2xl shadow-2xl border border-border">
+    <div className="bg-card text-card-foreground p-6 sm:p-8 rounded-2xl shadow-2xl border border-border">
       {/* Logo & Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25 mb-4">
-          <Sparkles className="h-7 w-7 text-white" />
+      <div className="text-center mb-6 sm:mb-8">
+        <div className="inline-flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/25 mb-4">
+          <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Create Account</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Create Account</h1>
         <p className="text-muted-foreground text-sm mt-1">Join DayFlow HRMS today</p>
       </div>
       

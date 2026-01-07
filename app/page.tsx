@@ -20,12 +20,15 @@ import {
   TrendingUp,
   Award,
   Globe,
-  Play
+  Play,
+  Menu,
+  X
 } from "lucide-react";
 
 export default function Home() {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -200,7 +203,7 @@ export default function Home() {
               <a href="#faq" className="text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium">FAQ</a>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <ThemeToggle />
               <Link href="/login">
                 <Button variant="ghost" className="hidden sm:inline-flex font-medium">
@@ -208,13 +211,57 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/register">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 font-medium">
-                  Get Started
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 font-medium text-sm sm:text-base px-3 sm:px-4">
+                  <span className="hidden sm:inline">Get Started</span>
+                  <span className="sm:hidden">Start</span>
+                  <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
                 </Button>
               </Link>
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
           </div>
+          
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 shadow-lg">
+              <div className="container mx-auto px-6 py-4 space-y-3">
+                <a 
+                  href="#features" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium"
+                >
+                  Features
+                </a>
+                <a 
+                  href="#pricing" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium"
+                >
+                  Pricing
+                </a>
+                <a 
+                  href="#faq" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition font-medium"
+                >
+                  FAQ
+                </a>
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start font-medium">
+                      Sign In
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -241,7 +288,7 @@ export default function Home() {
             </div>
             
             {/* Headline */}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-slate-900 dark:text-white mb-8 leading-[1.1] tracking-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-slate-900 dark:text-white mb-6 sm:mb-8 leading-[1.1] tracking-tight">
               HR Management
               <span className="block mt-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 bg-clip-text text-transparent">
                 Made Simple
@@ -249,36 +296,36 @@ export default function Home() {
             </h1>
             
             {/* Subheadline */}
-            <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-10 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed px-4 sm:px-0">
               The all-in-one platform to manage employees, track attendance, 
               process payroll, and streamline your HR operations.
             </p>
             
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8 px-4 sm:px-0">
               <Link href="/register">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg px-8 py-7 h-auto shadow-xl shadow-blue-500/25 group">
+                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7 h-auto shadow-xl shadow-blue-500/25 group">
                   Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-7 h-auto border-2 group">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7 h-auto border-2 group">
                 <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                 Watch Demo
               </Button>
             </div>
 
             {/* Trust badges */}
-            <div className="flex items-center justify-center gap-6 text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-slate-500 dark:text-slate-400 px-4 sm:px-0">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span>No credit card required</span>
               </div>
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span>14-day free trial</span>
               </div>
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span>Cancel anytime</span>
               </div>
@@ -286,41 +333,41 @@ export default function Home() {
           </div>
 
           {/* Dashboard Preview */}
-          <div className="mt-20 relative">
+          <div className="mt-12 sm:mt-20 relative px-4 sm:px-0">
             <div className="absolute inset-0 bg-gradient-to-t from-slate-50 dark:from-slate-950 to-transparent z-10 h-40 bottom-0 top-auto"></div>
             <div className="relative mx-auto max-w-6xl">
-              <div className="bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl p-2 shadow-2xl shadow-slate-900/50">
-                <div className="bg-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-gradient-to-b from-slate-900 to-slate-800 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-2xl shadow-slate-900/50">
+                <div className="bg-slate-800 rounded-lg sm:rounded-xl overflow-hidden">
                   {/* Mock Browser Bar */}
-                  <div className="flex items-center gap-2 px-4 py-3 bg-slate-900/50 border-b border-slate-700">
-                    <div className="flex gap-1.5">
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-slate-900/50 border-b border-slate-700">
+                    <div className="flex gap-1 sm:gap-1.5">
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-500"></div>
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-500"></div>
+                      <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
                     </div>
-                    <div className="flex-1 mx-4">
-                      <div className="bg-slate-700 rounded-md px-4 py-1.5 text-slate-400 text-sm max-w-md mx-auto">
+                    <div className="flex-1 mx-2 sm:mx-4">
+                      <div className="bg-slate-700 rounded-md px-3 sm:px-4 py-1 sm:py-1.5 text-slate-400 text-xs sm:text-sm max-w-md mx-auto truncate">
                         dayflow.com/dashboard
                       </div>
                     </div>
                   </div>
                   {/* Mock Dashboard */}
-                  <div className="p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                    <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="p-3 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                       {[
                         { label: "Total Employees", value: "248", change: "+12%", color: "blue" },
                         { label: "Present Today", value: "231", change: "93%", color: "green" },
                         { label: "On Leave", value: "17", change: "-3", color: "orange" },
                         { label: "Pending Requests", value: "8", change: "4 new", color: "purple" }
                       ].map((stat, i) => (
-                        <div key={i} className="bg-slate-800/50 backdrop-blur rounded-xl p-4 border border-slate-700/50">
-                          <p className="text-slate-400 text-sm mb-1">{stat.label}</p>
-                          <p className="text-2xl font-bold text-white">{stat.value}</p>
-                          <p className={`text-xs mt-1 ${stat.color === 'blue' ? 'text-blue-400' : stat.color === 'green' ? 'text-green-400' : stat.color === 'orange' ? 'text-orange-400' : 'text-purple-400'}`}>{stat.change}</p>
+                        <div key={i} className="bg-slate-800/50 backdrop-blur rounded-lg sm:rounded-xl p-2 sm:p-4 border border-slate-700/50">
+                          <p className="text-slate-400 text-[10px] sm:text-sm mb-0.5 sm:mb-1 truncate">{stat.label}</p>
+                          <p className="text-lg sm:text-2xl font-bold text-white">{stat.value}</p>
+                          <p className={`text-[10px] sm:text-xs mt-0.5 sm:mt-1 ${stat.color === 'blue' ? 'text-blue-400' : stat.color === 'green' ? 'text-green-400' : stat.color === 'orange' ? 'text-orange-400' : 'text-purple-400'}`}>{stat.change}</p>
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="hidden sm:grid grid-cols-3 gap-4">
                       <div className="col-span-2 bg-slate-800/50 backdrop-blur rounded-xl p-4 border border-slate-700/50 h-48">
                         <p className="text-slate-400 text-sm mb-4">Attendance Overview</p>
                         <div className="flex items-end gap-2 h-32">
@@ -355,18 +402,18 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 border-y border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <section className="py-12 sm:py-20 border-y border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((stat, i) => (
               <div key={i} className="text-center group">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 mb-4 group-hover:scale-110 transition-transform">
-                  <stat.icon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+                  <stat.icon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 dark:text-blue-400" />
                 </div>
-                <p className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent mb-2">
+                <p className="text-2xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent mb-1 sm:mb-2">
                   {stat.value}
                 </p>
-                <p className="text-slate-600 dark:text-slate-400 font-medium">{stat.label}</p>
+                <p className="text-xs sm:text-base text-slate-600 dark:text-slate-400 font-medium">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -374,37 +421,37 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-24 md:py-32">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-20">
+      <section id="features" className="py-16 sm:py-24 md:py-32">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12 sm:mb-20">
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-blue-50 dark:bg-blue-950/50 rounded-full text-blue-600 dark:text-blue-400 text-sm font-medium">
               <Zap className="w-4 h-4" />
               Powerful Features
             </div>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 px-4 sm:px-0">
               Everything you need to
               <span className="block bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 manage your workforce
               </span>
             </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto px-4 sm:px-0">
               Streamline your HR operations with our comprehensive suite of tools designed for modern businesses.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
             {features.map((feature, i) => (
               <div 
                 key={i} 
-                className="group relative bg-white dark:bg-slate-800/50 p-8 rounded-3xl border border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1"
+                className="group relative bg-white dark:bg-slate-800/50 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-slate-900/50 hover:-translate-y-1"
               >
-                <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.color} mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
-                  <feature.icon className="w-7 h-7 text-white" />
+                <div className={`inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${feature.color} mb-4 sm:mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <feature.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">
                   {feature.title}
                 </h3>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
                   {feature.desc}
                 </p>
               </div>
@@ -414,64 +461,64 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 md:py-32 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-20">
+      <section id="pricing" className="py-16 sm:py-24 md:py-32 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12 sm:mb-20">
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-green-50 dark:bg-green-950/50 rounded-full text-green-600 dark:text-green-400 text-sm font-medium">
               <CreditCard className="w-4 h-4" />
               Simple Pricing
             </div>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 px-4 sm:px-0">
               Plans that scale with
               <span className="block bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                 your business
               </span>
             </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto px-4 sm:px-0">
               Choose the perfect plan for your team. All plans include a 14-day free trial.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {plans.map((plan, i) => (
               <div 
                 key={i} 
-                className={`relative rounded-3xl p-8 transition-all duration-300 ${
+                className={`relative rounded-2xl sm:rounded-3xl p-6 sm:p-8 transition-all duration-300 ${
                   plan.highlighted 
-                    ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-2xl shadow-blue-500/25 md:scale-105 md:-my-4" 
+                    ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white shadow-2xl shadow-blue-500/25 sm:col-span-2 md:col-span-1 md:scale-105 md:-my-4" 
                     : "bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl"
                 }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 text-sm font-bold px-4 py-1.5 rounded-full shadow-lg">
+                  <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2">
+                    <span className="bg-gradient-to-r from-amber-400 to-orange-400 text-slate-900 text-xs sm:text-sm font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full shadow-lg">
                       {plan.badge}
                     </span>
                   </div>
                 )}
                 
-                <h3 className={`text-2xl font-bold mb-2 ${!plan.highlighted && "text-slate-900 dark:text-white"}`}>
+                <h3 className={`text-xl sm:text-2xl font-bold mb-2 ${!plan.highlighted && "text-slate-900 dark:text-white"}`}>
                   {plan.name}
                 </h3>
-                <p className={`mb-6 ${plan.highlighted ? "text-blue-100" : "text-slate-600 dark:text-slate-400"}`}>
+                <p className={`text-sm sm:text-base mb-4 sm:mb-6 ${plan.highlighted ? "text-blue-100" : "text-slate-600 dark:text-slate-400"}`}>
                   {plan.description}
                 </p>
 
-                <div className="mb-8">
-                  <span className={`text-5xl font-bold ${!plan.highlighted && "text-slate-900 dark:text-white"}`}>
+                <div className="mb-6 sm:mb-8">
+                  <span className={`text-3xl sm:text-5xl font-bold ${!plan.highlighted && "text-slate-900 dark:text-white"}`}>
                     {plan.price}
                   </span>
                   {plan.period && (
-                    <span className={plan.highlighted ? "text-blue-100" : "text-slate-600 dark:text-slate-400"}>
+                    <span className={`text-sm sm:text-base ${plan.highlighted ? "text-blue-100" : "text-slate-600 dark:text-slate-400"}`}>
                       {plan.period}
                     </span>
                   )}
                 </div>
 
-                <Link href="/register" className="block mb-8">
+                <Link href="/register" className="block mb-6 sm:mb-8">
                   <Button 
                     size="lg"
-                    className={`w-full h-auto py-4 font-semibold ${
+                    className={`w-full h-auto py-3 sm:py-4 font-semibold text-sm sm:text-base ${
                       plan.highlighted
                         ? "bg-white text-blue-600 hover:bg-slate-100 shadow-xl"
                         : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/25"
@@ -481,11 +528,11 @@ export default function Home() {
                   </Button>
                 </Link>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {plan.features.map((feature, j) => (
-                    <div key={j} className="flex items-center gap-3">
-                      <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${plan.highlighted ? "text-blue-200" : "text-green-500"}`} />
-                      <span className={plan.highlighted ? "text-blue-50" : "text-slate-600 dark:text-slate-300"}>
+                    <div key={j} className="flex items-center gap-2 sm:gap-3">
+                      <CheckCircle2 className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${plan.highlighted ? "text-blue-200" : "text-green-500"}`} />
+                      <span className={`text-sm sm:text-base ${plan.highlighted ? "text-blue-50" : "text-slate-600 dark:text-slate-300"}`}>
                         {feature}
                       </span>
                     </div>
@@ -498,26 +545,26 @@ export default function Home() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-24 md:py-32">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <div className="text-center mb-16">
+      <section id="faq" className="py-16 sm:py-24 md:py-32">
+        <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
+          <div className="text-center mb-10 sm:mb-16">
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 bg-purple-50 dark:bg-purple-950/50 rounded-full text-purple-600 dark:text-purple-400 text-sm font-medium">
               <Sparkles className="w-4 h-4" />
               FAQ
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-6 px-4 sm:px-0">
               Frequently Asked Questions
             </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-300">
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 px-4 sm:px-0">
               Everything you need to know about DayFlow
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {faqs.map((faq) => (
               <div 
                 key={faq.id}
-                className={`bg-white dark:bg-slate-800/50 rounded-2xl border transition-all duration-300 overflow-hidden ${
+                className={`bg-white dark:bg-slate-800/50 rounded-xl sm:rounded-2xl border transition-all duration-300 overflow-hidden ${
                   openFAQ === faq.id 
                     ? "border-blue-300 dark:border-blue-700 shadow-lg shadow-blue-500/10" 
                     : "border-slate-200 dark:border-slate-700/50 hover:border-blue-200 dark:hover:border-blue-800"
@@ -525,17 +572,17 @@ export default function Home() {
               >
                 <button
                   onClick={() => setOpenFAQ(openFAQ === faq.id ? null : faq.id)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left"
+                  className="w-full px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between text-left"
                 >
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white pr-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white pr-3 sm:pr-4">
                     {faq.question}
                   </h3>
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all ${
                     openFAQ === faq.id 
                       ? "bg-blue-100 dark:bg-blue-900 rotate-180" 
                       : "bg-slate-100 dark:bg-slate-700"
                   }`}>
-                    <ChevronDown className={`w-5 h-5 transition-colors ${
+                    <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
                       openFAQ === faq.id 
                         ? "text-blue-600 dark:text-blue-400" 
                         : "text-slate-600 dark:text-slate-400"
@@ -544,8 +591,8 @@ export default function Home() {
                 </button>
                 
                 <div className={`transition-all duration-300 ${openFAQ === faq.id ? "max-h-96" : "max-h-0"} overflow-hidden`}>
-                  <div className="px-6 pb-5">
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-5">
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
                       {faq.answer}
                     </p>
                   </div>
@@ -557,9 +604,9 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 md:py-32">
-        <div className="container mx-auto px-6">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-12 md:p-20">
+      <section className="py-16 sm:py-24 md:py-32">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 p-8 sm:p-12 md:p-20">
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-30">
               <div className="absolute top-0 left-0 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
@@ -567,22 +614,22 @@ export default function Home() {
             </div>
             
             <div className="relative text-center max-w-3xl mx-auto">
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6">
                 Ready to transform your HR?
               </h2>
-              <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
+              <p className="text-base sm:text-xl text-blue-100 mb-8 sm:mb-10 max-w-2xl mx-auto">
                 Join thousands of companies already using DayFlow to streamline their HR operations and boost productivity.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <Link href="/register">
-                  <Button size="lg" className="bg-white text-blue-600 hover:bg-slate-100 text-lg px-8 py-7 h-auto font-semibold shadow-xl group">
+                  <Button size="lg" className="w-full sm:w-auto bg-white text-blue-600 hover:bg-slate-100 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-7 h-auto font-semibold shadow-xl group">
                     Start Your Free Trial
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
                 <Link href="#pricing">
-                  <Button size="lg" variant="outline" className="text-white border-2 border-white/30 hover:bg-white/10 text-lg px-8 py-7 h-auto font-semibold backdrop-blur">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-white border-2 border-white/30 hover:bg-white/10 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-7 h-auto font-semibold backdrop-blur">
                     View Pricing
                   </Button>
                 </Link>
@@ -593,17 +640,17 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 dark:bg-black text-slate-400 py-16">
-        <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-5 gap-12 mb-12">
-            <div className="md:col-span-2">
+      <footer className="bg-slate-900 dark:bg-black text-slate-400 py-12 sm:py-16">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 sm:gap-12 mb-8 sm:mb-12">
+            <div className="col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-white">DayFlow</span>
+                <span className="text-lg sm:text-xl font-bold text-white">DayFlow</span>
               </div>
-              <p className="text-slate-400 mb-6 max-w-sm">
+              <p className="text-sm sm:text-base text-slate-400 mb-6 max-w-sm">
                 Modern HR management solution designed to help businesses of all sizes streamline their workforce operations.
               </p>
             </div>

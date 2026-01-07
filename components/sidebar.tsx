@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +23,8 @@ import {
   User,
   Menu,
   PanelLeftClose,
+  X,
+  Sparkles,
   type LucideIcon
 } from "lucide-react";
 
@@ -174,52 +178,117 @@ export default function Sidebar() {
     return content;
   };
 
-  return (
-    <aside
-      className={cn(
-        "relative flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
-        mounted && isCollapsed ? "w-18" : "w-64"
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <>
+      {/* Toggle Button - Only show on desktop */}
+      {!isMobile && (
+        <div className="flex items-center justify-between px-3 py-4 border-b">
+          {mounted && !isCollapsed && (
+            <span className="text-sm font-semibold text-foreground">Menu</span>
+          )}
+          {mounted && (
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent transition-colors",
+                isCollapsed && "mx-auto"
+              )}
+            >
+              {isCollapsed ? (
+                <Menu className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
+              )}
+            </button>
+          )}
+        </div>
       )}
-    >
-      {/* Toggle Button */}
-      <div className="flex items-center justify-between px-3 py-4 border-b">
-        {mounted && !isCollapsed && (
-          <span className="text-sm font-semibold text-foreground">Menu</span>
-        )}
-        {mounted && (
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent transition-colors",
-              isCollapsed && "mx-auto"
-            )}
-          >
-            {isCollapsed ? (
-              <Menu className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <PanelLeftClose className="h-5 w-5 text-muted-foreground" />
-            )}
-          </button>
-        )}
-      </div>
+
+      {/* Mobile Header */}
+      {isMobile && (
+        <div className="flex items-center justify-between px-4 py-4 border-b">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-lg font-bold">DayFlow</span>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-6">
           {groups.map((group, index) => (
             <div key={group.title}>
-              {mounted && !isCollapsed && (
+              {(isMobile || (mounted && !isCollapsed)) && (
                 <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group.title}
                 </h4>
               )}
-              {isCollapsed && index > 0 && (
+              {!isMobile && isCollapsed && index > 0 && (
                 <Separator className="my-4" />
               )}
               <div className="space-y-1">
-                {group.items.map((item) => (
-                  <NavItemComponent key={item.href} item={item} />
-                ))}
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  const Icon = item.icon;
+                  
+                  // Mobile version always shows full items
+                  if (isMobile) {
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                            isActive
+                              ? "bg-white/20"
+                              : "bg-muted group-hover:bg-muted/80"
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              "h-4 w-4 transition-colors",
+                              isActive ? "text-white" : "text-muted-foreground group-hover:text-foreground"
+                            )}
+                          />
+                        </div>
+                        <span className="flex-1">{item.label}</span>
+                        {item.badge && (
+                          <span
+                            className={cn(
+                              "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+                              isActive
+                                ? "bg-white/20 text-white"
+                                : "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
+                            )}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  }
+                  
+                  return <NavItemComponent key={item.href} item={item} />;
+                })}
               </div>
             </div>
           ))}
@@ -228,13 +297,46 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t p-3">
-        {!isCollapsed && (
-          <div className="rounded-xl bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-3">
+        {(isMobile || !isCollapsed) && (
+          <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-3">
             <p className="text-xs font-medium text-blue-900 dark:text-blue-100">DayFlow HRMS</p>
             <p className="text-[10px] text-blue-600 dark:text-blue-400">Version 1.0.0</p>
           </div>
         )}
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Menu Button - Fixed position */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 md:hidden hover:from-blue-700 hover:to-indigo-700"
+          >
+            <Menu className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-72 p-0">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <div className="flex flex-col h-full">
+            <SidebarContent isMobile />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside
+        className={cn(
+          "relative hidden md:flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
+          mounted && isCollapsed ? "w-18" : "w-64"
+        )}
+      >
+        <SidebarContent />
+      </aside>
+    </>
   );
 }
